@@ -12,12 +12,7 @@ func main() {
 			return err
 		}
 
-		pointers, err := NewPoints(cfg)
-		if err != nil {
-			return err
-		}
-
-		lines, err := NewLines(cfg, pointers)
+		lines, err := NewLines(cfg)
 		if err != nil {
 			return err
 		}
