@@ -1,42 +1,32 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"github.com/baetyl/baetyl-go/v2/http"
-
 	"github.com/256dpi/gomqtt/packet"
 	"github.com/baetyl/baetyl-go/v2/errors"
+	"github.com/baetyl/baetyl-go/v2/http"
 	"github.com/baetyl/baetyl-go/v2/log"
 	"github.com/baetyl/baetyl-go/v2/mqtt"
 )
 
-const (
-	ModulePrefix     = "baetyl-rule"
-	SystemNamespace  = "baetyl-edge-system"
-	BaetylBroker     = "baetyl-broker"
-	BaetylFunction   = "baetyl-function"
-	BaetylBrokerPort = 1883
-)
-
 type liner struct {
-	cfg    Line
-	source *mqtt.Client
-	sink   *mqtt.Client
-	filter  *http.Client
-	log    *log.Logger
+	cfg      Line
+	source   *mqtt.Client
+	sink     *mqtt.Client
+	filter   *http.Client
+	resolver Resolver
+	log      *log.Logger
 }
 
-func NewLines(cfg Config) ([]*liner, error) {
+func NewLines(cfg Config, resolver Resolver) ([]*liner, error) {
 	pointers := make(map[string]Point)
 	for _, v := range cfg.Points {
 		pointers[v.Name] = v
 	}
-	pointers[BaetylBroker] = getBrokerPoint()
 
 	liners := make([]*liner, 0)
 	for _, l := range cfg.Lines {
-		liner, err := newLiner(l, pointers)
+		liner, err := newLiner(l, pointers, resolver)
 		if err != nil {
 			return nil, err
 		}
@@ -52,34 +42,34 @@ func NewLines(cfg Config) ([]*liner, error) {
 	return liners, nil
 }
 
-func newLiner(line Line, pointers map[string]Point) (*liner, error) {
+func newLiner(line Line, pointers map[string]Point, resolver Resolver) (*liner, error) {
 	source, ok := pointers[line.Source.Point]
 	if !ok {
-		return nil, errors.Trace(errors.Errorf("point (%s) not found in rule (%s)", line.Source.Point, line.Name))
+		return nil, errors.Trace(errors.Errorf("point (%s) not found in line (%s)", line.Source.Point, line.Name))
 	}
 
 	var sink Point
 	if line.Sink != nil {
 		sink, ok = pointers[line.Sink.Point]
 		if !ok {
-			return nil, errors.Trace(errors.Errorf("point (%s) not found in rule (%s)", line.Sink.Point, line.Name))
+			return nil, errors.Trace(errors.Errorf("point (%s) not found in line (%s)", line.Sink.Point, line.Name))
 		}
 	}
 
 	subs := []mqtt.QOSTopic{
 		{
 			Topic: line.Source.Topic,
-			QOS: line.Source.QOS,
+			QOS:   uint32(line.Source.QOS),
 		},
 	}
-	sourceCLi, err := newMqttClient(source, subs)
+	sourceCLi, err := newMqttClient(generateClientID(line.Name, "source"), source, subs)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 
 	var sinkCli *mqtt.Client
 	if line.Sink != nil {
-		sinkCli, err = newMqttClient(sink, nil)
+		sinkCli, err = newMqttClient(generateClientID(line.Name, "sink"), sink, nil)
 		if err != nil {
 			return nil, errors.Trace(err)
 		}
@@ -92,63 +82,64 @@ func newLiner(line Line, pointers map[string]Point) (*liner, error) {
 	}
 
 	return &liner{
-		cfg:    line,
-		source: sourceCLi,
-		sink:   sinkCli,
-		filter: httpCli,
-		log:    log.With(log.Any("main", "line")),
+		cfg:      line,
+		source:   sourceCLi,
+		sink:     sinkCli,
+		filter:   httpCli,
+		resolver: resolver,
+		log:      log.With(log.Any("main", "line"), log.Any("line", line.Name)),
 	}, nil
 }
 
 func (l *liner) start() error {
-	if err := l.source.Start(l); err != nil {
-		return err
-	}
-	return l.sink.Start(l)
-}
-
-func (l *liner) OnPublish(in *packet.Publish) (err error) {
-	// filter
-	var resp []byte
-	if l.cfg.Filter != nil {
-		// send http post
-		url := fmt.Sprintf("%s.%s", BaetylFunction, SystemNamespace)
-		resp, err = l.filter.PostJSON(url, in.Message.Payload)
-		if err != nil {
-			return
-		}
-	}
-
-	// sink
-	if l.sink == nil {
-		return nil
-	}
-
-	pkt := packet.NewPublish()
-	pkt.ID = in.ID
-	pkt.Message.QOS = packet.QOS(l.cfg.Sink.QOS)
-	if in.Message.QOS < pkt.Message.QOS {
-		pkt.Message.QOS = in.Message.QOS
-	}
-	pkt.Message.Topic = l.cfg.Sink.Topic
-	if err != nil {
-		s := map[string]interface{}{
-			"functionMessage": in,
-			"errorMessage":    err.Error(),
-		}
-		pkt.Message.Payload, _ = json.Marshal(s)
-	} else if resp != nil {
-		pkt.Message.Payload = resp
-		err := l.sink.Send(pkt)
-		if err != nil {
+	if l.sink != nil {
+		if err := l.sink.Start(l); err != nil {
 			return err
 		}
 	}
+	return l.source.Start(l)
+}
 
-	if in.Message.QOS == 1 && (pkt.Message.QOS == 0 || pkt.Message.Payload == nil) {
-		puback := packet.NewPuback()
-		puback.ID = packet.ID(in.ID)
-		l.source.Send(puback)
+func (l *liner) OnPublish(in *packet.Publish) error {
+	var err error
+	resp := in.Message.Payload
+	if l.cfg.Filter != nil {
+		url := l.resolver.ResolveID(l.cfg.Filter.Function)
+		resp, err = l.filter.PostJSON(url, in.Message.Payload)
+		if err != nil {
+			l.log.Error("error occured when invoke filter function", log.Any("function", l.cfg.Filter.Function), log.Error(err))
+			return nil
+		}
+	}
+
+	if l.sink != nil && len(resp) != 0 {
+		out := mqtt.NewPublish()
+		out.ID = in.ID
+		out.Dup = in.Dup
+		out.Message = *in.Message.Copy()
+		out.Message.Payload = resp
+		out.Message.Topic = l.cfg.Sink.Topic
+		if out.Message.QOS > mqtt.QOS(l.cfg.Sink.QOS) {
+			out.Message.QOS = mqtt.QOS(l.cfg.Sink.QOS)
+		}
+
+		err = l.sink.Send(out)
+		if err != nil {
+			l.log.Error("error occured when send msg to sink", log.Any("sink", l.cfg.Sink.Point), log.Error(err))
+			return nil
+		}
+
+		if in.Message.QOS == 1 && l.cfg.Sink.QOS == 0 {
+			if err := l.ackSource(in.ID); err != nil {
+				return nil
+			}
+		}
+	} else {
+		if in.Message.QOS == 1 {
+			if err := l.ackSource(in.ID); err != nil {
+				return nil
+			}
+		}
 	}
 	return nil
 }
@@ -161,6 +152,16 @@ func (l *liner) OnError(error error) {
 	l.log.Error("error occurs", log.Error(error))
 }
 
+func (l *liner) ackSource(id mqtt.ID) error {
+	puback := packet.NewPuback()
+	puback.ID = id
+	err := l.source.Send(puback)
+	if err != nil {
+		l.log.Error("error occured when send puback to source when QOS degraded", log.Any("source", l.cfg.Source.Point), log.Error(err))
+	}
+	return err
+}
+
 func (l *liner) close() {
 	if l.source != nil {
 		l.source.Close()
@@ -170,38 +171,29 @@ func (l *liner) close() {
 	}
 }
 
-func getBrokerPoint() Point{
-	// TODO: change to tls
-	return Point{
-		Name: BaetylBroker,
-		Mqtt: &Mqtt{
-			Address:        fmt.Sprintf("tcp://%s.%s:%d", BaetylBroker, SystemNamespace, BaetylBrokerPort),
-			Username:       "",
-			Password:       "",
-		},
-	}
-}
-
-func generateClientID(name string) string {
-	return fmt.Sprintf("%s-%s", ModulePrefix, name)
-}
-
-func newMqttClient(point Point, subs []mqtt.QOSTopic) (*mqtt.Client, error) {
-	if point.Mqtt == nil {
-		return nil, errors.Trace(errors.Errorf("mqtt is not configured in point (%s)", point.Name))
-	}
+func newMqttClient(cid string, point Point, subs []mqtt.QOSTopic) (*mqtt.Client, error) {
 	cfg := mqtt.ClientConfig{
-		Address:        point.Mqtt.Address,
-		Username:       point.Mqtt.Username,
-		Password:       point.Mqtt.Password,
-		ClientID:       generateClientID(point.Name),
-		DisableAutoAck: true,
-		Subscriptions:  subs,
-		Certificate:    point.Mqtt.Certificate,
+		Address:              point.Mqtt.Address,
+		Username:             point.Mqtt.Username,
+		Password:             point.Mqtt.Password,
+		ClientID:             cid,
+		CleanSession:         point.Mqtt.CleanSession,
+		Timeout:              point.Mqtt.Timeout,
+		KeepAlive:            point.Mqtt.KeepAlive,
+		MaxReconnectInterval: point.Mqtt.MaxReconnectInterval,
+		MaxCacheMessages:     point.Mqtt.MaxCacheMessages,
+		DisableAutoAck:       true,
+		Subscriptions:        subs,
+		Certificate:          point.Mqtt.Certificate,
 	}
+
 	ops, err := cfg.ToClientOptions()
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 	return mqtt.NewClient(*ops), nil
+}
+
+func generateClientID(line, name string) string {
+	return fmt.Sprintf("%s-%s-%s", BaetylRule, line, name)
 }

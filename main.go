@@ -12,13 +12,13 @@ func main() {
 			return err
 		}
 
-		lines, err := NewLines(cfg)
+		lines, err := NewLines(cfg, NewResolver())
 		if err != nil {
 			return err
 		}
 		defer func() {
-			for _, liner := range lines {
-				liner.close()
+			for _, line := range lines {
+				line.close()
 			}
 		}()
 
