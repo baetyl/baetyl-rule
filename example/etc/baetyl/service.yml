@@ -1,0 +1,36 @@
+points:
+  - name: iotcore
+    mqtt:
+      address: 'tcp://anwhswx.iot.gz.baidubce.com:1883'
+      clientid: 11dd7422353c46fc9851ef8fb7114534
+      username: anwhswx/test-kuiper
+      password: mADAZVhXvhlKSMBr
+  - name: baetyl-broker
+    mqtt:
+      address: 'tcp://127.0.0.1:1893'
+lines:
+  - name: line1
+    source:
+      topic: broker/topic1
+      qos: 1
+    sink:
+      point: iotcore
+      topic: $iot/test-kuiper/user/a
+      qos: 1
+  - name: line2
+    source:
+      point: iotcore
+      topic: $iot/test-kuiper/user/b
+      qos: 0
+    sink:
+      topic: broker/topic4
+      qos: 1
+  - name: line3
+    source:
+      topic: broker/topic5
+      qos: 0
+    sink:
+      topic: broker/topic6
+      qos: 1
+    filter:
+      function: node85
