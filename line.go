@@ -1,6 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"io/ioutil"
+	gohttp "net/http"
+
 	"fmt"
 	"github.com/256dpi/gomqtt/packet"
 	"github.com/baetyl/baetyl-go/v2/errors"
@@ -102,28 +106,33 @@ func (l *liner) start() error {
 
 func (l *liner) OnPublish(in *packet.Publish) error {
 	var err error
-	resp := in.Message.Payload
+	data := in.Message.Payload
 	if l.cfg.Filter != nil {
 		url := l.resolver.ResolveID(l.cfg.Filter.Function)
-		resp, err = l.filter.PostJSON(url, in.Message.Payload)
+		resp, err := l.filter.PostURL(url, bytes.NewBuffer(in.Message.Payload))
 		if err != nil {
 			l.log.Error("error occured when invoke filter function", log.Any("function", l.cfg.Filter.Function), log.Error(err))
 			return nil
 		}
+		data, err = ioutil.ReadAll(resp.Body)
+		if resp.StatusCode != gohttp.StatusOK {
+			l.log.Error("error occured when invoke filter function", log.Any("function", l.cfg.Filter.Function), log.Any("StatusCode", resp.StatusCode))
+			return nil
+		}
 	}
 
-	if l.sink != nil && len(resp) != 0 {
+	if l.sink != nil && len(data) != 0 {
 		out := mqtt.NewPublish()
 		out.ID = in.ID
 		out.Dup = in.Dup
 		out.Message = *in.Message.Copy()
-		out.Message.Payload = resp
+		out.Message.Payload = data
 		out.Message.Topic = l.cfg.Sink.Topic
 		if out.Message.QOS > mqtt.QOS(l.cfg.Sink.QOS) {
 			out.Message.QOS = mqtt.QOS(l.cfg.Sink.QOS)
 		}
 
-		err = l.sink.Send(out)
+		err = l.sink.SendOrDrop(out)
 		if err != nil {
 			l.log.Error("error occured when send msg to sink", log.Any("sink", l.cfg.Sink.Point), log.Error(err))
 			return nil
@@ -145,7 +154,7 @@ func (l *liner) OnPublish(in *packet.Publish) error {
 }
 
 func (l *liner) OnPuback(pkt *packet.Puback) error {
-	return l.source.Send(pkt)
+	return l.source.SendOrDrop(pkt)
 }
 
 func (l *liner) OnError(error error) {
@@ -155,7 +164,7 @@ func (l *liner) OnError(error error) {
 func (l *liner) ackSource(id mqtt.ID) error {
 	puback := packet.NewPuback()
 	puback.ID = id
-	err := l.source.Send(puback)
+	err := l.source.SendOrDrop(puback)
 	if err != nil {
 		l.log.Error("error occured when send puback to source when QOS degraded", log.Any("source", l.cfg.Source.Point), log.Error(err))
 	}
