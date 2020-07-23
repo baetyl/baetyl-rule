@@ -16,7 +16,7 @@ type Resolver interface {
 type resolver struct{}
 
 func NewResolver() Resolver {
-	return &resolver{}
+	return new(resolver)
 }
 
 func (r *resolver) ResolveID(name string) string {
