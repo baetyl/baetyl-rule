@@ -14,8 +14,6 @@ github.com/baetyl/baetyl-broker v0.0.0-20200709104758-34377a58afaa h1:YcBriJD5/+
 github.com/baetyl/baetyl-broker v0.0.0-20200709104758-34377a58afaa/go.mod h1:+JXmfSqMP/lexMWX9KLupBh6UkToDgerB3lYpdp3ek4=
 github.com/baetyl/baetyl-go v0.1.60 h1:gJgWR3dGAvtYAOQmks9X/yHE22y8pd4OKIeGlX5557s=
 github.com/baetyl/baetyl-go v0.1.60/go.mod h1:RJtE4dPY4tJHiuBubdhfnTsOKnSFkzarq2iToRZMaZw=
-github.com/baetyl/baetyl-go/v2 v2.0.6 h1:IPUVj3YdrThcRCoBulHe0nGRnTiL9PsNzwYMk7WfjUU=
-github.com/baetyl/baetyl-go/v2 v2.0.6/go.mod h1:lSbGBDIwooLqjb5XGS456zWTJhEavUEz5YHFUlfKP1w=
 github.com/baetyl/baetyl-go/v2 v2.0.8 h1:EnoAcQQPyK+rwysOwBT1iet/gT3nWbMVIT+ZagsnXJs=
 github.com/baetyl/baetyl-go/v2 v2.0.8/go.mod h1:lSbGBDIwooLqjb5XGS456zWTJhEavUEz5YHFUlfKP1w=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
@@ -92,6 +90,8 @@ github.com/hashicorp/golang-lru v0.5.0/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ
 github.com/hashicorp/hcl v0.0.0-20170914154624-68e816d1c783/go.mod h1:oZtUIOe8dh44I2q6ScRibXws4Ajl+d+nod3AaR9vL5w=
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
 github.com/inconshreveable/log15 v0.0.0-20170622235902-74a0988b5f80/go.mod h1:cOaXtrgN4ScfRrD9Bre7U1thNq5RtJ8ZoP4iXVGRj6o=
+github.com/jinzhu/copier v0.0.0-20190924061706-b57f9002281a h1:zPPuIq2jAWWPTrGt70eK/BSch+gFAGrNzecsoENgu2o=
+github.com/jinzhu/copier v0.0.0-20190924061706-b57f9002281a/go.mod h1:yL958EeXv8Ylng6IfnvG4oflryUi3vgA3xPs9hmII1s=
 github.com/jmoiron/sqlx v1.2.0/go.mod h1:1FEQNm3xlJgrMD+FBdI9+xvCksHtbpVBBw5dYhBSsks=
 github.com/jpillora/backoff v0.0.0-20170918002102-8eab2debe79d/go.mod h1:2iMrUgbbvHEiQClaW2NsSzMyGHqN+rDFqY705q49KG0=
 github.com/jpillora/backoff v1.0.0 h1:uvFg412JmmHBHw7iwprIxkPMI+sGQ4kzOWsMeHnm2EA=
@@ -121,6 +121,7 @@ github.com/mattn/go-sqlite3 v1.9.0/go.mod h1:FPy6KqzDD04eiIsT53CuJW3U88zkxoIYsOq
 github.com/mattn/go-sqlite3 v1.14.0/go.mod h1:JIl7NbARA7phWnGvh0LKTyg7S9BA+6gx71ShQilpsus=
 github.com/mholt/archiver v3.1.1+incompatible h1:1dCVxuqs0dJseYEhi5pl7MYPH9zDa1wBi7mF09cbNkU=
 github.com/mholt/archiver v3.1.1+incompatible/go.mod h1:Dh2dOXnSdiLxRiPoVfIr/fI1TwETms9B8CTWfeh7ROU=
+github.com/mitchellh/mapstructure v0.0.0-20170523030023-d0303fe80992 h1:W7VHAEVflA5/eTyRvQ53Lz5j8bhRd1myHZlI/IZFvbU=
 github.com/mitchellh/mapstructure v0.0.0-20170523030023-d0303fe80992/go.mod h1:FVVH3fgwuzCH5S8UJGiWEs2h04kUh9fWfEaFds41c1Y=
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/reflect2 v1.0.1/go.mod h1:bx2lNnkwVCuqBIxFjflWJWanXIb3RllmbCylyMrvgv0=
