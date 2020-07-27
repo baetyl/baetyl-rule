@@ -1,24 +1,33 @@
-package line
+package pkg
 
 import (
+	"fmt"
+
 	"github.com/baetyl/baetyl-go/v2/errors"
 	"github.com/baetyl/baetyl-go/v2/http"
-	"github.com/baetyl/baetyl-go/v2/log"
-	"github.com/baetyl/baetyl-rule/extension"
 )
 
 type Liner struct {
-	cfg      Line
-	source   extension.Source
-	sink     extension.Sink
+	cfg      LineInfo
+	cli1     Client
+	cli2     Client
 	resolver Resolver
-	log      *log.Logger
 }
 
 func NewLines(cfg Config) ([]*Liner, error) {
-	pointers := make(map[string]Point)
+	resolver := NewResolver()
+
+	pointers := make(map[string]PointInfo)
 	for _, v := range cfg.Points {
 		pointers[v.Name] = v
+	}
+
+	pointers[BaetylBroker] = PointInfo{
+		Name: BaetylBroker,
+		Kind: KindMqtt,
+		Value: map[string]interface{}{
+			"address": resolver.Resolve("tcp", BaetylBroker),
+		},
 	}
 
 	for _, line := range cfg.Lines {
@@ -37,8 +46,6 @@ func NewLines(cfg Config) ([]*Liner, error) {
 		}
 	}
 
-	resolver := NewResolver()
-
 	liners := make([]*Liner, 0)
 	for _, l := range cfg.Lines {
 		liner, err := newLiner(l, pointers, resolver)
@@ -50,43 +57,45 @@ func NewLines(cfg Config) ([]*Liner, error) {
 	return liners, nil
 }
 
-func newLiner(line Line, pointers map[string]Point, resolver Resolver) (*Liner, error) {
-	var filter *extension.Filter
+func newLiner(line LineInfo, pointers map[string]PointInfo, resolver Resolver) (*Liner, error) {
+	var filter *Filter
 	if line.Filter != nil {
 		ops := http.NewClientOptions()
-		filter = &extension.Filter{
-			Url: resolver.ResolveID(line.Filter.Function),
-			Cli: http.NewClient(ops),
+		filter = &Filter{
+			url: fmt.Sprintf("%s/%s", resolver.Resolve("http", line.Filter.Function), line.Filter.Function),
+			cli: http.NewClient(ops),
 		}
 	}
 
-	source, err := GetSource(line, pointers[line.Source.Point])
+	if line.Source.QOS > line.Sink.QOS {
+		line.Source.QOS = line.Sink.QOS
+	}
+	cli1, err := GetClient(line.Name, *line.Source, pointers[line.Source.Point])
 	if err != nil {
 		return nil, err
 	}
 
-	sink, err := GetSink(line, pointers[line.Sink.Point])
+	cli2, err := GetClient(line.Name, *line.Sink, pointers[line.Sink.Point])
 	if err != nil {
 		return nil, err
 	}
 
-	source.Start(filter, sink)
-	sink.Start(source)
+	cli1.Start(filter, cli2)
+	cli2.Start(nil, cli1)
 
 	return &Liner{
 		cfg:      line,
-		source:   source,
-		sink:     sink,
+		cli1:     cli1,
+		cli2:     cli2,
 		resolver: resolver,
-		log:      log.With(log.Any("main", "line"), log.Any("line", line.Name)),
 	}, nil
 }
 
 func (l *Liner) Close() {
-	if l.source != nil {
-		l.source.Close()
+	if l.cli1 != nil {
+		l.cli1.Close()
 	}
-	if l.sink != nil {
-		l.sink.Close()
+	if l.cli2 != nil {
+		l.cli2.Close()
 	}
 }
