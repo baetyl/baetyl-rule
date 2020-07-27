@@ -2,18 +2,18 @@ package main
 
 import (
 	"github.com/baetyl/baetyl-go/v2/context"
-	"github.com/baetyl/baetyl-rule/line"
+	"github.com/baetyl/baetyl-rule/pkg"
 )
 
 func main() {
 	context.Run(func(ctx context.Context) error {
-		var cfg line.Config
+		var cfg pkg.Config
 		err := ctx.LoadCustomConfig(&cfg)
 		if err != nil {
 			return err
 		}
 
-		lines, err := line.NewLines(cfg)
+		lines, err := pkg.NewLines(cfg)
 		if err != nil {
 			return err
 		}

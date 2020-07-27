@@ -1,4 +1,4 @@
-package line
+package pkg
 
 import "github.com/mitchellh/mapstructure"
 
@@ -11,28 +11,28 @@ const (
 
 // Config config of rule
 type Config struct {
-	Points []Point `yaml:"points" json:"points"`
-	Lines  []Line  `yaml:"lines" json:"lines"`
+	Points []PointInfo `yaml:"points" json:"points"`
+	Lines  []LineInfo  `yaml:"lines" json:"lines"`
 }
 
-// Point point config
-type Point struct {
+// PointInfo point config
+type PointInfo struct {
 	Name  string                 `yaml:"name" json:"name" validate:"nonzero"`
 	Kind  Kind                   `yaml:"kind" json:"kind" validate:"nonzero"`
 	Value map[string]interface{} `yaml:",inline" json:",inline"`
 }
 
 // Parse parse to get real config type
-func (v *Point) Parse(in interface{}) error {
+func (v *PointInfo) Parse(in interface{}) error {
 	return mapstructure.Decode(v.Value, in)
 }
 
-// Line line config
-type Line struct {
-	Name   string    `yaml:"name" json:"name" validate:"nonzero"`
-	Source *LineNode `yaml:"source" json:"source"`
-	Sink   *LineNode `yaml:"sink" json:"sink"`
-	Filter *Filter   `yaml:"filter" json:"filter"`
+// LineInfo line config
+type LineInfo struct {
+	Name   string      `yaml:"name" json:"name" validate:"nonzero"`
+	Source *LineNode   `yaml:"source" json:"source"`
+	Sink   *LineNode   `yaml:"sink" json:"sink"`
+	Filter *FilterInfo `yaml:"filter" json:"filter"`
 }
 
 // LineNode linenode config
@@ -42,7 +42,7 @@ type LineNode struct {
 	Topic string `yaml:"topic" json:"topic" validate:"nonzero"`
 }
 
-// Filter filter config
-type Filter struct {
+// FilterInfo filter config
+type FilterInfo struct {
 	Function string `yaml:"function" json:"function" validate:"nonzero"`
 }
