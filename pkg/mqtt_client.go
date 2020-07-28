@@ -9,13 +9,14 @@ import (
 
 type MqttClient struct {
 	cfg     *mqtt.ClientConfig
+	node    LineNode
 	sibling Client
 	filter  *Filter
 	cli     *mqtt.Client
 	log     *log.Logger
 }
 
-func NewMqttExtension(cfg *mqtt.ClientConfig) (Client, error) {
+func NewMqttClient(cfg *mqtt.ClientConfig, node LineNode) (Client, error) {
 	ops, err := cfg.ToClientOptions()
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -23,20 +24,25 @@ func NewMqttExtension(cfg *mqtt.ClientConfig) (Client, error) {
 
 	cli := mqtt.NewClient(*ops)
 	source := &MqttClient{
-		cfg: cfg,
-		cli: cli,
-		log: log.With(log.Any("pkg", "mqtt_client"), log.Any("clientID", cfg.ClientID)),
+		cfg:  cfg,
+		node: node,
+		cli:  cli,
+		log:  log.With(log.Any("pkg", "mqtt_client"), log.Any("clientID", cfg.ClientID)),
 	}
 	return source, nil
 }
 
 func (m *MqttClient) SendOrDrop(pkt mqtt.Packet) error {
+	if in, ok := pkt.(*mqtt.Publish); ok {
+		in.Message.Topic = m.node.Topic
+		return m.cli.SendOrDrop(in)
+	}
 	return m.cli.SendOrDrop(pkt)
 }
 
 func (m *MqttClient) Start(filter *Filter, client Client) {
-	m.sibling = client
 	m.filter = filter
+	m.sibling = client
 	go m.cli.Start(m)
 }
 
@@ -62,9 +68,10 @@ func (m *MqttClient) OnPublish(pkt *packet.Publish) (err error) {
 		err := m.cli.SendOrDrop(puback)
 		if err != nil {
 			m.log.Error("error occured when send puback", log.Error(err))
-			return nil
 		}
+		return nil
 	}
+	pkt.Message.Payload = data
 	err = m.sibling.SendOrDrop(pkt)
 	if err != nil {
 		m.log.Error("error occured when send pkt to sink", log.Error(err))
