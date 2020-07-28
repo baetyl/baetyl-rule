@@ -2,24 +2,24 @@ package main
 
 import (
 	"github.com/baetyl/baetyl-go/v2/context"
-	"github.com/baetyl/baetyl-rule/pkg"
+	"github.com/baetyl/baetyl-rule/rule"
 )
 
 func main() {
 	context.Run(func(ctx context.Context) error {
-		var cfg pkg.Config
+		var cfg rule.Config
 		err := ctx.LoadCustomConfig(&cfg)
 		if err != nil {
 			return err
 		}
 
-		lines, err := pkg.NewLines(cfg, pkg.NewResolver())
+		rulers, err := rule.NewRulers(cfg)
 		if err != nil {
 			return err
 		}
 		defer func() {
-			for _, line := range lines {
-				line.Close()
+			for _, ruler := range rulers {
+				ruler.Close()
 			}
 		}()
 

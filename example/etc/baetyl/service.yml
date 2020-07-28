@@ -1,0 +1,18 @@
+clients:
+  - name: iotcore
+    kind: mqtt
+    address: 'tcp://anxhswx.iot.gz.baidubce.com:1883'
+    username: username
+    password: password
+
+rules:
+  - name: rule1
+    source:
+      topic: group1/topic1
+      qos: 1
+    target:
+      client: iotcore
+      topic: $iot/test-kuiper/user/a
+      qos: 1
+    function:
+      name: process

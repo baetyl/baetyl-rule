@@ -1,7 +1,7 @@
 MODULE:=rule
 BIN:=baetyl-$(MODULE)
 SRC_FILES:=$(shell find . -type f -name '*.go')
-PLATFORM_ALL:=darwin/amd64 linux/amd64 linux/arm64 linux/arm/v7
+PLATFORM_ALL:=darwin/amd64 linux/amd64 linux/arm64 linux/386 linux/arm/v7
 
 export DOCKER_CLI_EXPERIMENTAL=enabled
 
@@ -31,7 +31,7 @@ XPLATFORMS:=$(shell echo $(filter-out darwin/amd64,$(PLATFORMS)) | sed 's: :,:g'
 .PHONY: all
 all: $(SRC_FILES)
 	@echo "BUILD $(BIN)"
-	@env GO111MODULE=on GOPROXY=https://goproxy.cn CGO_ENABLED=0 go build -o $(BIN) $(GO_FLAGS) .
+	@env GO111MODULE=on GOPROXY=https://goproxy.cn CGO_ENABLED=0 go build -o $(BIN) $(GO_FLAGS) cmd/main.go
 
 .PHONY: image
 image:
