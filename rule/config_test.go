@@ -1,4 +1,4 @@
-package pkg
+package rule
 
 import (
 	"io/ioutil"
@@ -17,7 +17,7 @@ func TestConfig(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	config1 := `
-points:
+clients:
   - name: iotcore
     kind: mqtt
     address: 'ssl://u7isgiz.mqtt.iot.bj.baidubce.com:1884'
@@ -25,13 +25,13 @@ points:
     ca: var/db/baetyl/cert/ca.pem
     cert: var/db/baetyl/cert/client.pem
     key: var/db/baetyl/cert/client.key
-lines:
-  - name: line1
+rules:
+  - name: rule1
     source:
       topic: broker/topic1
       qos: 1
-    sink:
-      point: iotcore
+    target:
+      client: iotcore
       topic: iotcore/topic2
       qos: 0
 `
@@ -43,10 +43,10 @@ lines:
 	var c Config
 	err = utils.LoadYAML(file1, &c)
 	assert.NoError(t, err)
-	assert.Equal(t, c.Points[0].Kind, KindMqtt)
-	assert.Equal(t, c.Points[0].Name, "iotcore")
+	assert.Equal(t, c.Clients[0].Kind, kindMqtt)
+	assert.Equal(t, c.Clients[0].Name, "iotcore")
 	cfg := new(mqtt.ClientConfig)
-	err = c.Points[0].Parse(cfg)
+	err = c.Clients[0].Parse(cfg)
 	assert.Equal(t, cfg.Address, "ssl://u7isgiz.mqtt.iot.bj.baidubce.com:1884")
 	assert.Equal(t, cfg.Username, "u7isgiz/test")
 	assert.Equal(t, cfg.CA, "var/db/baetyl/cert/ca.pem")
