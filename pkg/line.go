@@ -14,9 +14,7 @@ type Liner struct {
 	resolver Resolver
 }
 
-func NewLines(cfg Config) ([]*Liner, error) {
-	resolver := NewResolver()
-
+func NewLines(cfg Config, resolver Resolver) ([]*Liner, error) {
 	pointers := make(map[string]PointInfo)
 	for _, v := range cfg.Points {
 		pointers[v.Name] = v
@@ -26,7 +24,7 @@ func NewLines(cfg Config) ([]*Liner, error) {
 		Name: BaetylBroker,
 		Kind: KindMqtt,
 		Value: map[string]interface{}{
-			"address": resolver.Resolve("tcp", BaetylBroker),
+			"address": fmt.Sprintf("%s:%d", resolver.ResolveHost("tcp", BaetylBroker), BaetylBrokerPort),
 		},
 	}
 
@@ -62,7 +60,7 @@ func newLiner(line LineInfo, pointers map[string]PointInfo, resolver Resolver) (
 	if line.Filter != nil {
 		ops := http.NewClientOptions()
 		filter = &Filter{
-			url: fmt.Sprintf("%s/%s", resolver.Resolve("http", line.Filter.Function), line.Filter.Function),
+			url: fmt.Sprintf("%s/%s", resolver.ResolveHost("http", line.Filter.Function), line.Filter.Function),
 			cli: http.NewClient(ops),
 		}
 	}
@@ -70,12 +68,15 @@ func newLiner(line LineInfo, pointers map[string]PointInfo, resolver Resolver) (
 	if line.Source.QOS > line.Sink.QOS {
 		line.Source.QOS = line.Sink.QOS
 	}
-	cli1, err := GetClient(line.Name, *line.Source, pointers[line.Source.Point])
+
+	clientID1 := generateClientID(line.Name, "source")
+	cli1, err := GetClient(clientID1, *line.Source, pointers[line.Source.Point])
 	if err != nil {
 		return nil, err
 	}
 
-	cli2, err := GetClient(line.Name, *line.Sink, pointers[line.Sink.Point])
+	clientID2 := generateClientID(line.Name, "sink")
+	cli2, err := GetClient(clientID2, *line.Sink, pointers[line.Sink.Point])
 	if err != nil {
 		return nil, err
 	}

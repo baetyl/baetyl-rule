@@ -13,7 +13,7 @@ func main() {
 			return err
 		}
 
-		lines, err := pkg.NewLines(cfg)
+		lines, err := pkg.NewLines(cfg, pkg.NewResolver())
 		if err != nil {
 			return err
 		}

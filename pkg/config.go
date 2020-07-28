@@ -1,6 +1,8 @@
 package pkg
 
-import "github.com/mitchellh/mapstructure"
+import (
+	"encoding/json"
+)
 
 type Kind string
 
@@ -24,7 +26,11 @@ type PointInfo struct {
 
 // Parse parse to get real config type
 func (v *PointInfo) Parse(in interface{}) error {
-	return mapstructure.Decode(v.Value, in)
+	data, err := json.Marshal(v.Value)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, in)
 }
 
 // LineInfo line config

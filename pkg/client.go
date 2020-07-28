@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	gohttp "net/http"
@@ -35,7 +36,7 @@ func (f *Filter) Post(payload []byte) ([]byte, error) {
 	return data, nil
 }
 
-func GetClient(lineName string, node LineNode, point PointInfo) (s Client, err error) {
+func GetClient(clientID string, node LineNode, point PointInfo) (s Client, err error) {
 	switch point.Kind {
 	case KindMqtt:
 		cfg := new(mqtt.ClientConfig)
@@ -44,7 +45,7 @@ func GetClient(lineName string, node LineNode, point PointInfo) (s Client, err e
 			return nil, errors.Trace(err)
 		}
 		err = point.Parse(cfg)
-		cfg.ClientID = generateClientID(lineName, point.Name)
+		cfg.ClientID = clientID
 		cfg.DisableAutoAck = true
 		cfg.Subscriptions = []mqtt.QOSTopic{
 			{
@@ -52,9 +53,13 @@ func GetClient(lineName string, node LineNode, point PointInfo) (s Client, err e
 				Topic: node.Topic,
 			},
 		}
-		s, err = NewMqttExtension(cfg)
+		s, err = NewMqttClient(cfg, node)
 	default:
-		err = errors.Trace(errors.Errorf("point kind (%s) is not supported"))
+		err = errors.Trace(errors.Errorf("point kind (%s) is not supported", point.Kind))
 	}
 	return s, err
+}
+
+func generateClientID(line, name string) string {
+	return fmt.Sprintf("%s-%s-%s", BaetylRule, line, name)
 }
