@@ -103,9 +103,16 @@ func newRuler(rule RuleInfo, clients map[string]ClientInfo) (*Ruler, error) {
 			}
 			return nil
 		}
-		pkt.Message.Payload = data
-		pkt.Message.Topic = rule.Target.Topic
-		err = target.SendOrDrop(pkt)
+		out := mqtt.NewPublish()
+		out.ID = pkt.ID
+		out.Dup = pkt.Dup
+		out.Message = packet.Message{
+			Topic:   rule.Target.Topic,
+			Payload: data,
+			QOS:     pkt.Message.QOS,
+			Retain:  pkt.Message.Retain,
+		}
+		err = target.SendOrDrop(out)
 		if err != nil {
 			logger.Error("error occured when send pkt to target in source", log.Error(err))
 		}

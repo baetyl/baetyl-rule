@@ -193,6 +193,8 @@ rules:
 	cli1.assertS2CPacket(fmt.Sprintf("<Publish ID=2 Message=<Message Topic=\"group1/topic2\" QOS=1 Retain=false Payload=%x> Dup=false>", msg2))
 	cli1.assertS2CPacketTimeout()
 
+	fmt.Println("--> test rule1 passed <--")
+
 	// test rule2
 	ops3 := mqtt.NewClientOptions()
 	ops3.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
@@ -227,6 +229,8 @@ rules:
 	assert.NoError(t, err)
 	cli3.assertS2CPacketTimeout()
 
+	fmt.Println("--> test rule2 passed <--")
+
 	// test rule3
 	ops5 := mqtt.NewClientOptions()
 	ops5.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
@@ -260,6 +264,8 @@ rules:
 	err = cli6.pub(pub6)
 	assert.NoError(t, err)
 	cli5.assertS2CPacketTimeout()
+
+	fmt.Println("--> test rule3 passed <--")
 
 	// test rule4
 	ops7 := mqtt.NewClientOptions()
@@ -305,6 +311,8 @@ rules:
 	cli7.assertS2CPacket(fmt.Sprintf("<Publish ID=2 Message=<Message Topic=\"group1/topic8\" QOS=1 Retain=false Payload=%x> Dup=false>", msg8))
 	cli7.assertS2CPacketTimeout()
 
+	fmt.Println("--> test rule4 passed <--")
+
 	// test rule5
 	ops9 := mqtt.NewClientOptions()
 	ops9.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
@@ -349,6 +357,8 @@ rules:
 	cli9.assertS2CPacket(fmt.Sprintf("<Publish ID=0 Message=<Message Topic=\"group1/topic10\" QOS=0 Retain=false Payload=%x> Dup=false>", msg10))
 	cli9.assertS2CPacketTimeout()
 
+	fmt.Println("--> test rule5 passed <--")
+
 	// test rule6
 	ops11 := mqtt.NewClientOptions()
 	ops11.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
@@ -392,6 +402,7 @@ rules:
 
 	cli11.assertS2CPacket(fmt.Sprintf("<Publish ID=0 Message=<Message Topic=\"group1/topic12\" QOS=0 Retain=false Payload=%x> Dup=false>", msg12))
 	cli11.assertS2CPacketTimeout()
+	fmt.Println("--> test rule6 passed <--")
 }
 
 func TestSSL(t *testing.T) {
@@ -408,9 +419,9 @@ func TestSSL(t *testing.T) {
 listeners:
   - address: tcp://0.0.0.0:PORT1
   - address: ssl://0.0.0.0:PORT2
-    ca: ../example/var/lib/baetyl/testcert/ca.pem
+    ca: ../example/var/lib/baetyl/testcert/ca.crt
     key: ../example/var/lib/baetyl/testcert/server.key
-    cert: ../example/var/lib/baetyl/testcert/server.pem
+    cert: ../example/var/lib/baetyl/testcert/server.crt
 principals:
   - username: test
     password: hahaha
@@ -419,7 +430,7 @@ principals:
         permit: ["#"]
       - action: sub
         permit: ["#"]
-  - username: client.example.org
+  - username: client
     permissions:
       - action: pub
         permit: ["#"]
@@ -448,10 +459,9 @@ clients:
   - name: mock-broker
     kind: mqtt
     address: 'ssl://127.0.0.1:PORT2'
-    username: client.example.org
-    ca: ../example/var/lib/baetyl/testcert/ca.pem
+    ca: ../example/var/lib/baetyl/testcert/ca.crt
     key: ../example/var/lib/baetyl/testcert/client.key
-    cert: ../example/var/lib/baetyl/testcert/client.pem
+    cert: ../example/var/lib/baetyl/testcert/client.crt
     insecureSkipVerify: true
 rules:
   - name: rule1
@@ -620,7 +630,7 @@ func (c *mockMqttClient) assertS2CPacket(expect string) {
 	case pkt := <-c.s2c:
 		assert.NotNil(c.t, pkt)
 		assert.Equal(c.t, expect, pkt.String())
-	case <-time.After(10 * time.Minute):
+	case <-time.After(time.Second):
 		assert.Fail(c.t, "receive common timeout")
 	}
 }
@@ -629,7 +639,7 @@ func (c *mockMqttClient) assertS2CPacketTimeout() {
 	select {
 	case pkt := <-c.s2c:
 		assert.Fail(c.t, "receive unexpected packet:", pkt.String())
-	case <-time.After(time.Millisecond * 500):
+	case <-time.After(time.Second):
 	}
 }
 
