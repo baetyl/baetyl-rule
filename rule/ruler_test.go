@@ -193,93 +193,7 @@ rules:
 	cli1.assertS2CPacket(fmt.Sprintf("<Publish ID=2 Message=<Message Topic=\"group1/topic2\" QOS=1 Retain=false Payload=%x> Dup=false>", msg2))
 	cli1.assertS2CPacketTimeout()
 
-	// test rule5
-	ops9 := mqtt.NewClientOptions()
-	ops9.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
-	ops9.ClientID = "rule5-target"
-	ops9.Subscriptions = []mqtt.Subscription{
-		{
-			Topic: "group1/topic10",
-			QOS:   1,
-		},
-	}
-	cli9 := newMockMqttClient(t, &ops9)
-	err = cli9.start()
-	assert.NoError(t, err)
-	defer cli9.close()
-
-	ops10 := mqtt.NewClientOptions()
-	ops10.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
-	ops10.ClientID = "rule5-source"
-	cli10 := newMockMqttClient(t, &ops10)
-	err = cli10.start()
-	assert.NoError(t, err)
-	defer cli10.close()
-
-	pub10 := mqtt.NewPublish()
-	pub10.ID = 100
-	msg10 := []byte(`{"name":"topic9"}`)
-	pub10.Message = packet.Message{
-		Topic:   "group1/topic9",
-		Payload: msg10,
-		QOS:     1,
-	}
-	err = cli10.pub(pub10)
-	assert.NoError(t, err)
-
-	cli9.assertS2CPacket(fmt.Sprintf("<Publish ID=0 Message=<Message Topic=\"group1/topic10\" QOS=0 Retain=false Payload=%x> Dup=false>", msg10))
-	cli9.assertS2CPacketTimeout()
-
-	pub10.ID = 101
-	err = cli10.pub(pub10)
-	assert.NoError(t, err)
-
-	cli9.assertS2CPacket(fmt.Sprintf("<Publish ID=0 Message=<Message Topic=\"group1/topic10\" QOS=0 Retain=false Payload=%x> Dup=false>", msg10))
-	cli9.assertS2CPacketTimeout()
-
-	// test rule6
-	ops11 := mqtt.NewClientOptions()
-	ops11.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
-	ops11.ClientID = "rule6-target"
-	ops11.Subscriptions = []mqtt.Subscription{
-		{
-			Topic: "group1/topic12",
-			QOS:   1,
-		},
-	}
-	cli11 := newMockMqttClient(t, &ops11)
-	err = cli11.start()
-	assert.NoError(t, err)
-	defer cli11.close()
-
-	ops12 := mqtt.NewClientOptions()
-	ops12.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
-	ops12.ClientID = "rule6-source"
-	cli12 := newMockMqttClient(t, &ops12)
-	err = cli12.start()
-	assert.NoError(t, err)
-	defer cli12.close()
-
-	pub12 := mqtt.NewPublish()
-	pub12.ID = 100
-	msg12 := []byte(`{"name":"topic11"}`)
-	pub12.Message = packet.Message{
-		Topic:   "group1/topic11",
-		Payload: msg12,
-		QOS:     1,
-	}
-	err = cli12.pub(pub12)
-	assert.NoError(t, err)
-
-	cli11.assertS2CPacket(fmt.Sprintf("<Publish ID=0 Message=<Message Topic=\"group1/topic12\" QOS=0 Retain=false Payload=%x> Dup=false>", msg12))
-	cli11.assertS2CPacketTimeout()
-
-	pub12.ID = 101
-	err = cli12.pub(pub12)
-	assert.NoError(t, err)
-
-	cli11.assertS2CPacket(fmt.Sprintf("<Publish ID=0 Message=<Message Topic=\"group1/topic12\" QOS=0 Retain=false Payload=%x> Dup=false>", msg12))
-	cli11.assertS2CPacketTimeout()
+	fmt.Println("--> test rule1 passed <--")
 
 	// test rule2
 	ops3 := mqtt.NewClientOptions()
@@ -315,6 +229,8 @@ rules:
 	assert.NoError(t, err)
 	cli3.assertS2CPacketTimeout()
 
+	fmt.Println("--> test rule2 passed <--")
+
 	// test rule3
 	ops5 := mqtt.NewClientOptions()
 	ops5.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
@@ -348,6 +264,8 @@ rules:
 	err = cli6.pub(pub6)
 	assert.NoError(t, err)
 	cli5.assertS2CPacketTimeout()
+
+	fmt.Println("--> test rule3 passed <--")
 
 	// test rule4
 	ops7 := mqtt.NewClientOptions()
@@ -393,6 +311,98 @@ rules:
 	cli7.assertS2CPacket(fmt.Sprintf("<Publish ID=2 Message=<Message Topic=\"group1/topic8\" QOS=1 Retain=false Payload=%x> Dup=false>", msg8))
 	cli7.assertS2CPacketTimeout()
 
+	fmt.Println("--> test rule4 passed <--")
+
+	// test rule5
+	ops9 := mqtt.NewClientOptions()
+	ops9.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
+	ops9.ClientID = "rule5-target"
+	ops9.Subscriptions = []mqtt.Subscription{
+		{
+			Topic: "group1/topic10",
+			QOS:   1,
+		},
+	}
+	cli9 := newMockMqttClient(t, &ops9)
+	err = cli9.start()
+	assert.NoError(t, err)
+	defer cli9.close()
+
+	ops10 := mqtt.NewClientOptions()
+	ops10.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
+	ops10.ClientID = "rule5-source"
+	cli10 := newMockMqttClient(t, &ops10)
+	err = cli10.start()
+	assert.NoError(t, err)
+	defer cli10.close()
+
+	pub10 := mqtt.NewPublish()
+	pub10.ID = 100
+	msg10 := []byte(`{"name":"topic9"}`)
+	pub10.Message = packet.Message{
+		Topic:   "group1/topic9",
+		Payload: msg10,
+		QOS:     1,
+	}
+	err = cli10.pub(pub10)
+	assert.NoError(t, err)
+
+	cli9.assertS2CPacket(fmt.Sprintf("<Publish ID=0 Message=<Message Topic=\"group1/topic10\" QOS=0 Retain=false Payload=%x> Dup=false>", msg10))
+	cli9.assertS2CPacketTimeout()
+
+	pub10.ID = 101
+	err = cli10.pub(pub10)
+	assert.NoError(t, err)
+
+	cli9.assertS2CPacket(fmt.Sprintf("<Publish ID=0 Message=<Message Topic=\"group1/topic10\" QOS=0 Retain=false Payload=%x> Dup=false>", msg10))
+	cli9.assertS2CPacketTimeout()
+
+	fmt.Println("--> test rule5 passed <--")
+
+	// test rule6
+	ops11 := mqtt.NewClientOptions()
+	ops11.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
+	ops11.ClientID = "rule6-target"
+	ops11.Subscriptions = []mqtt.Subscription{
+		{
+			Topic: "group1/topic12",
+			QOS:   1,
+		},
+	}
+	cli11 := newMockMqttClient(t, &ops11)
+	err = cli11.start()
+	assert.NoError(t, err)
+	defer cli11.close()
+
+	ops12 := mqtt.NewClientOptions()
+	ops12.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
+	ops12.ClientID = "rule6-source"
+	cli12 := newMockMqttClient(t, &ops12)
+	err = cli12.start()
+	assert.NoError(t, err)
+	defer cli12.close()
+
+	pub12 := mqtt.NewPublish()
+	pub12.ID = 100
+	msg12 := []byte(`{"name":"topic11"}`)
+	pub12.Message = packet.Message{
+		Topic:   "group1/topic11",
+		Payload: msg12,
+		QOS:     1,
+	}
+	err = cli12.pub(pub12)
+	assert.NoError(t, err)
+
+	cli11.assertS2CPacket(fmt.Sprintf("<Publish ID=0 Message=<Message Topic=\"group1/topic12\" QOS=0 Retain=false Payload=%x> Dup=false>", msg12))
+	cli11.assertS2CPacketTimeout()
+
+	pub12.ID = 101
+	err = cli12.pub(pub12)
+	assert.NoError(t, err)
+
+	cli11.assertS2CPacket(fmt.Sprintf("<Publish ID=0 Message=<Message Topic=\"group1/topic12\" QOS=0 Retain=false Payload=%x> Dup=false>", msg12))
+	cli11.assertS2CPacketTimeout()
+	fmt.Println("--> test rule6 passed <--")
 }
 
 func TestSSL(t *testing.T) {
