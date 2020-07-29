@@ -29,8 +29,6 @@ func TestRule(t *testing.T) {
 
 	port1, err := getFreePort()
 	assert.NoError(t, err)
-	//port2, err := getFreePort()
-	//assert.NoError(t, err)
 	port3, err := getFreePort()
 	assert.NoError(t, err)
 	funcSucc := "node85"
@@ -46,30 +44,8 @@ session:
       source: DIR
   resendInterval: 5s
 `
-	//	brokerConf2 := `
-	//listeners:
-	// - address: ssl://0.0.0.0:PORT2
-	//   ca: ../example/var/lib/baetyl/testcert/ca.pem
-	//   key: ../example/var/lib/baetyl/testcert/server.key
-	//   cert: ../example/var/lib/baetyl/testcert/server.pem
-	//principals:
-	// - username: client.example.org
-	//   permissions:
-	//	 - action: pub
-	//	   permit: ["#"]
-	//	 - action: sub
-	//	   permit: ["#"]
-	//session:
-	// persistence:
-	//   store:
-	//	 source: DIR
-	// resendInterval: 5s
-	//	`
-
 	brokerConf1 = strings.Replace(brokerConf1, "DIR", path.Join(dir, "test1.db"), -1)
 	brokerConf1 = strings.Replace(brokerConf1, "PORT1", strconv.Itoa(port1), -1)
-	//brokerConf2 = strings.Replace(brokerConf2, "DIR", path.Join(dir, "test2.db"), -1)
-	//brokerConf2 = strings.Replace(brokerConf2, "PORT2", strconv.Itoa(port2), -1)
 
 	rulesConf := `
 clients:
@@ -153,14 +129,6 @@ rules:
 	defer broker1.close()
 
 	mockHttp(t, port3, funcSucc, funcErr, funcEmpty)
-
-	//var brokerCfg2 mockBrokerConfig
-	//err = utils.UnmarshalYAML([]byte(brokerConf2), &brokerCfg2)
-	//assert.NoError(t, err)
-	//
-	//broker2, err := newMockBroker(brokerCfg2)
-	//assert.NoError(t, err)
-	//defer broker2.close()
 
 	var rulesConfig Config
 	err = utils.UnmarshalYAML([]byte(rulesConf), &rulesConfig)
@@ -336,6 +304,228 @@ rules:
 
 	cli7.assertS2CPacket(fmt.Sprintf("<Publish ID=2 Message=<Message Topic=\"group1/topic8\" QOS=1 Retain=false Payload=%x> Dup=false>", msg8))
 	cli7.assertS2CPacketTimeout()
+
+	// test rule5
+	ops9 := mqtt.NewClientOptions()
+	ops9.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
+	ops9.ClientID = "rule5-target"
+	ops9.Subscriptions = []mqtt.Subscription{
+		{
+			Topic: "group1/topic10",
+			QOS:   1,
+		},
+	}
+	cli9 := newMockMqttClient(t, &ops9)
+	err = cli9.start()
+	assert.NoError(t, err)
+	defer cli9.close()
+
+	ops10 := mqtt.NewClientOptions()
+	ops10.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
+	ops10.ClientID = "rule5-source"
+	cli10 := newMockMqttClient(t, &ops10)
+	err = cli10.start()
+	assert.NoError(t, err)
+	defer cli10.close()
+
+	pub10 := mqtt.NewPublish()
+	pub10.ID = 100
+	msg10 := []byte(`{"name":"topic9"}`)
+	pub10.Message = packet.Message{
+		Topic:   "group1/topic9",
+		Payload: msg10,
+		QOS:     1,
+	}
+	err = cli10.pub(pub10)
+	assert.NoError(t, err)
+
+	cli9.assertS2CPacket(fmt.Sprintf("<Publish ID=0 Message=<Message Topic=\"group1/topic10\" QOS=0 Retain=false Payload=%x> Dup=false>", msg10))
+	cli9.assertS2CPacketTimeout()
+
+	pub10.ID = 101
+	err = cli10.pub(pub10)
+	assert.NoError(t, err)
+
+	cli9.assertS2CPacket(fmt.Sprintf("<Publish ID=0 Message=<Message Topic=\"group1/topic10\" QOS=0 Retain=false Payload=%x> Dup=false>", msg10))
+	cli9.assertS2CPacketTimeout()
+
+	// test rule6
+	ops11 := mqtt.NewClientOptions()
+	ops11.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
+	ops11.ClientID = "rule6-target"
+	ops11.Subscriptions = []mqtt.Subscription{
+		{
+			Topic: "group1/topic12",
+			QOS:   1,
+		},
+	}
+	cli11 := newMockMqttClient(t, &ops11)
+	err = cli11.start()
+	assert.NoError(t, err)
+	defer cli11.close()
+
+	ops12 := mqtt.NewClientOptions()
+	ops12.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
+	ops12.ClientID = "rule6-source"
+	cli12 := newMockMqttClient(t, &ops12)
+	err = cli12.start()
+	assert.NoError(t, err)
+	defer cli12.close()
+
+	pub12 := mqtt.NewPublish()
+	pub12.ID = 100
+	msg12 := []byte(`{"name":"topic11"}`)
+	pub12.Message = packet.Message{
+		Topic:   "group1/topic11",
+		Payload: msg12,
+		QOS:     1,
+	}
+	err = cli12.pub(pub12)
+	assert.NoError(t, err)
+
+	cli11.assertS2CPacket(fmt.Sprintf("<Publish ID=0 Message=<Message Topic=\"group1/topic12\" QOS=0 Retain=false Payload=%x> Dup=false>", msg12))
+	cli11.assertS2CPacketTimeout()
+
+	pub12.ID = 101
+	err = cli12.pub(pub12)
+	assert.NoError(t, err)
+
+	cli11.assertS2CPacket(fmt.Sprintf("<Publish ID=0 Message=<Message Topic=\"group1/topic12\" QOS=0 Retain=false Payload=%x> Dup=false>", msg12))
+	cli11.assertS2CPacketTimeout()
+}
+
+func TestSSL(t *testing.T) {
+	dir, err := ioutil.TempDir("", t.Name())
+	assert.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	port1, err := getFreePort()
+	assert.NoError(t, err)
+	port2, err := getFreePort()
+	assert.NoError(t, err)
+
+	brokerConf1 := `
+listeners:
+  - address: tcp://0.0.0.0:PORT1
+  - address: ssl://0.0.0.0:PORT2
+    ca: ../example/var/lib/baetyl/testcert/ca.pem
+    key: ../example/var/lib/baetyl/testcert/server.key
+    cert: ../example/var/lib/baetyl/testcert/server.pem
+principals:
+  - username: test
+    password: hahaha
+    permissions:
+      - action: pub
+        permit: ["#"]
+      - action: sub
+        permit: ["#"]
+  - username: client.example.org
+    permissions:
+      - action: pub
+        permit: ["#"]
+      - action: sub
+        permit: ["#"]
+session:
+  persistence:
+    store:
+      source: DIR
+  resendInterval: 5s
+`
+	brokerConf1 = strings.Replace(brokerConf1, "DIR", path.Join(dir, "test1.db"), -1)
+	brokerConf1 = strings.Replace(brokerConf1, "PORT1", strconv.Itoa(port1), -1)
+	brokerConf1 = strings.Replace(brokerConf1, "PORT2", strconv.Itoa(port2), -1)
+
+	var brokerCfg1 mockBrokerConfig
+	err = utils.UnmarshalYAML([]byte(brokerConf1), &brokerCfg1)
+	assert.NoError(t, err)
+
+	broker1, err := newMockBroker(brokerCfg1)
+	assert.NoError(t, err)
+	defer broker1.close()
+
+	rulesConf := `
+clients:
+  - name: mock-broker
+    kind: mqtt
+    address: 'ssl://127.0.0.1:PORT2'
+    username: client.example.org
+    ca: ../example/var/lib/baetyl/testcert/ca.pem
+    key: ../example/var/lib/baetyl/testcert/client.key
+    cert: ../example/var/lib/baetyl/testcert/client.pem
+    insecureSkipVerify: true
+rules:
+  - name: rule1
+    source:
+      client: mock-broker
+      topic: group1/topic1
+      qos: 1
+    target:
+      client: mock-broker
+      topic: group1/topic2
+      qos: 1
+`
+	rulesConf = strings.Replace(rulesConf, "PORT2", strconv.Itoa(port2), -1)
+
+	var rulesConfig Config
+	err = utils.UnmarshalYAML([]byte(rulesConf), &rulesConfig)
+	assert.NoError(t, err)
+
+	rules, err := NewRulers(rulesConfig)
+	assert.NoError(t, err)
+	defer func() {
+		for _, rule := range rules {
+			rule.Close()
+		}
+	}()
+
+	time.Sleep(time.Second)
+
+	// test rule1
+	ops1 := mqtt.NewClientOptions()
+	ops1.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
+	ops1.ClientID = "rule1-target"
+	ops1.Username = "test"
+	ops1.Password = "hahaha"
+	ops1.Subscriptions = []mqtt.Subscription{
+		{
+			Topic: "group1/topic2",
+			QOS:   1,
+		},
+	}
+	cli1 := newMockMqttClient(t, &ops1)
+	err = cli1.start()
+	assert.NoError(t, err)
+	defer cli1.close()
+
+	ops2 := mqtt.NewClientOptions()
+	ops2.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
+	ops2.ClientID = "rule1-source"
+	ops2.Username = "test"
+	ops2.Password = "hahaha"
+	cli2 := newMockMqttClient(t, &ops2)
+	err = cli2.start()
+	assert.NoError(t, err)
+	defer cli2.close()
+
+	pub2 := mqtt.NewPublish()
+	pub2.ID = 100
+	msg := []byte(`{"name":"topic1"}`)
+	pub2.Message = packet.Message{
+		Topic:   "group1/topic1",
+		Payload: msg,
+		QOS:     1,
+	}
+	err = cli2.pub(pub2)
+	assert.NoError(t, err)
+	cli1.assertS2CPacket(fmt.Sprintf("<Publish ID=1 Message=<Message Topic=\"group1/topic2\" QOS=1 Retain=false Payload=%x> Dup=false>", msg))
+	cli1.assertS2CPacketTimeout()
+
+	pub2.ID = 101
+	err = cli2.pub(pub2)
+	assert.NoError(t, err)
+
+	cli1.assertS2CPacket(fmt.Sprintf("<Publish ID=2 Message=<Message Topic=\"group1/topic2\" QOS=1 Retain=false Payload=%x> Dup=false>", msg))
+	cli1.assertS2CPacketTimeout()
 }
 
 type mockBrokerConfig struct {
