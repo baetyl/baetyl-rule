@@ -53,6 +53,6 @@ func generateClientID(rule, name string) string {
 	return fmt.Sprintf("%s-%s-%s", BaetylRule, rule, name)
 }
 
-func resolveFilterAddress(function string) string {
+func resolveFunctionAddress(function string) string {
 	return fmt.Sprintf("http://%s.%s/%s", BaetylFunction, BaetylEdgeSystemNamespace, function)
 }

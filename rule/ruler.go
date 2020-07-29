@@ -59,7 +59,7 @@ func newRuler(rule RuleInfo, clients map[string]ClientInfo) (*Ruler, error) {
 	if rule.Function != nil {
 		ops := http.NewClientOptions()
 		function = &client.Function{
-			URL: resolveFilterAddress(rule.Function.Name),
+			URL: resolveFunctionAddress(rule.Function.Name),
 			CLI: http.NewClient(ops),
 		}
 	}
