@@ -15,6 +15,7 @@ import (
 	"github.com/256dpi/gomqtt/packet"
 	"github.com/baetyl/baetyl-broker/listener"
 	"github.com/baetyl/baetyl-broker/session"
+	"github.com/baetyl/baetyl-go/v2/log"
 	"github.com/baetyl/baetyl-go/v2/mqtt"
 	"github.com/baetyl/baetyl-go/v2/utils"
 	routing "github.com/qiangxue/fasthttp-routing"
@@ -23,6 +24,14 @@ import (
 )
 
 func TestRule(t *testing.T) {
+	cfg := log.Config{
+		Level:      "debug",
+		Encoding:   "json",
+	}
+
+	_, err := log.Init(cfg)
+	assert.NoError(t, err)
+
 	dir, err := ioutil.TempDir("", t.Name())
 	assert.NoError(t, err)
 	defer os.RemoveAll(dir)
