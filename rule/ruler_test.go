@@ -115,6 +115,7 @@ rules:
       topic: group1/topic12
       qos: 1
 `
+
 	rulesConf = strings.Replace(rulesConf, "PORT1", strconv.Itoa(port1), -1)
 	rulesConf = strings.Replace(rulesConf, "FUNCTIONSUCC", funcSucc, -1)
 	rulesConf = strings.Replace(rulesConf, "FUNCTIONERR", funcErr, -1)
@@ -124,11 +125,11 @@ rules:
 	err = utils.UnmarshalYAML([]byte(brokerConf1), &brokerCfg1)
 	assert.NoError(t, err)
 
-	broker1, err := newMockBroker(brokerCfg1)
+	broker1, err := newBroker(brokerCfg1)
 	assert.NoError(t, err)
 	defer broker1.close()
 
-	mockHttp(t, port3, funcSucc, funcErr, funcEmpty)
+	newHttp(t, port3, funcSucc, funcErr, funcEmpty)
 
 	var rulesConfig Config
 	err = utils.UnmarshalYAML([]byte(rulesConf), &rulesConfig)
@@ -146,10 +147,7 @@ rules:
 	rules[1].function.URL = fmt.Sprintf("http://127.0.0.1:%d/%s", port3, funcErr)
 	rules[2].function.URL = fmt.Sprintf("http://127.0.0.1:%d/%s", port3, funcEmpty)
 
-	// ensure client of rule connected successfully
-	time.Sleep(time.Second)
-
-	// test rule1
+	// rule1 clients
 	ops1 := mqtt.NewClientOptions()
 	ops1.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
 	ops1.ClientID = "rule1-target"
@@ -159,7 +157,7 @@ rules:
 			QOS:   1,
 		},
 	}
-	cli1 := newMockMqttClient(t, &ops1)
+	cli1 := newMqttClient(t, &ops1)
 	err = cli1.start()
 	assert.NoError(t, err)
 	defer cli1.close()
@@ -167,35 +165,12 @@ rules:
 	ops2 := mqtt.NewClientOptions()
 	ops2.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
 	ops2.ClientID = "rule1-source"
-	cli2 := newMockMqttClient(t, &ops2)
+	cli2 := newMqttClient(t, &ops2)
 	err = cli2.start()
 	assert.NoError(t, err)
 	defer cli2.close()
 
-	pub2 := mqtt.NewPublish()
-	pub2.ID = 100
-	pub2.Message = packet.Message{
-		Topic:   "group1/topic1",
-		Payload: []byte(`{"name":"topic1"}`),
-		QOS:     1,
-	}
-	err = cli2.pub(pub2)
-
-	assert.NoError(t, err)
-	msg2 := []byte(`{"hello"":"node85"}`)
-	cli1.assertS2CPacket(fmt.Sprintf("<Publish ID=1 Message=<Message Topic=\"group1/topic2\" QOS=1 Retain=false Payload=%x> Dup=false>", msg2))
-	cli1.assertS2CPacketTimeout()
-
-	pub2.ID = 101
-	err = cli2.pub(pub2)
-	assert.NoError(t, err)
-
-	cli1.assertS2CPacket(fmt.Sprintf("<Publish ID=2 Message=<Message Topic=\"group1/topic2\" QOS=1 Retain=false Payload=%x> Dup=false>", msg2))
-	cli1.assertS2CPacketTimeout()
-
-	fmt.Println("--> test rule1 passed <--")
-
-	// test rule2
+	// rule2 clients
 	ops3 := mqtt.NewClientOptions()
 	ops3.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
 	ops3.ClientID = "rule2-target"
@@ -205,7 +180,7 @@ rules:
 			QOS:   1,
 		},
 	}
-	cli3 := newMockMqttClient(t, &ops3)
+	cli3 := newMqttClient(t, &ops3)
 	err = cli3.start()
 	assert.NoError(t, err)
 	defer cli3.close()
@@ -213,25 +188,12 @@ rules:
 	ops4 := mqtt.NewClientOptions()
 	ops4.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
 	ops4.ClientID = "rule2-source"
-	cli4 := newMockMqttClient(t, &ops4)
+	cli4 := newMqttClient(t, &ops4)
 	err = cli4.start()
 	assert.NoError(t, err)
 	defer cli4.close()
 
-	pub4 := mqtt.NewPublish()
-	pub4.ID = 100
-	pub4.Message = packet.Message{
-		Topic:   "group1/topic3",
-		Payload: []byte(`{"name":"topic3"}`),
-		QOS:     1,
-	}
-	err = cli4.pub(pub4)
-	assert.NoError(t, err)
-	cli3.assertS2CPacketTimeout()
-
-	fmt.Println("--> test rule2 passed <--")
-
-	// test rule3
+	// rule3 clients
 	ops5 := mqtt.NewClientOptions()
 	ops5.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
 	ops5.ClientID = "rule3-target"
@@ -241,7 +203,7 @@ rules:
 			QOS:   1,
 		},
 	}
-	cli5 := newMockMqttClient(t, &ops5)
+	cli5 := newMqttClient(t, &ops5)
 	err = cli5.start()
 	assert.NoError(t, err)
 	defer cli5.close()
@@ -249,25 +211,12 @@ rules:
 	ops6 := mqtt.NewClientOptions()
 	ops6.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
 	ops6.ClientID = "rule3-source"
-	cli6 := newMockMqttClient(t, &ops6)
+	cli6 := newMqttClient(t, &ops6)
 	err = cli6.start()
 	assert.NoError(t, err)
 	defer cli6.close()
 
-	pub6 := mqtt.NewPublish()
-	pub6.ID = 100
-	pub6.Message = packet.Message{
-		Topic:   "group1/topic5",
-		Payload: []byte(`{"name":"topic5"}`),
-		QOS:     1,
-	}
-	err = cli6.pub(pub6)
-	assert.NoError(t, err)
-	cli5.assertS2CPacketTimeout()
-
-	fmt.Println("--> test rule3 passed <--")
-
-	// test rule4
+	// rule4 clients
 	ops7 := mqtt.NewClientOptions()
 	ops7.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
 	ops7.ClientID = "rule4-target"
@@ -277,7 +226,7 @@ rules:
 			QOS:   1,
 		},
 	}
-	cli7 := newMockMqttClient(t, &ops7)
+	cli7 := newMqttClient(t, &ops7)
 	err = cli7.start()
 	assert.NoError(t, err)
 	defer cli7.close()
@@ -285,35 +234,12 @@ rules:
 	ops8 := mqtt.NewClientOptions()
 	ops8.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
 	ops8.ClientID = "rule4-source"
-	cli8 := newMockMqttClient(t, &ops8)
+	cli8 := newMqttClient(t, &ops8)
 	err = cli8.start()
 	assert.NoError(t, err)
 	defer cli8.close()
 
-	pub8 := mqtt.NewPublish()
-	pub8.ID = 100
-	msg8 := []byte(`{"name":"topic7"}`)
-	pub8.Message = packet.Message{
-		Topic:   "group1/topic7",
-		Payload: msg8,
-		QOS:     1,
-	}
-	err = cli8.pub(pub8)
-	assert.NoError(t, err)
-
-	cli7.assertS2CPacket(fmt.Sprintf("<Publish ID=1 Message=<Message Topic=\"group1/topic8\" QOS=1 Retain=false Payload=%x> Dup=false>", msg8))
-	cli7.assertS2CPacketTimeout()
-
-	pub8.ID = 101
-	err = cli8.pub(pub8)
-	assert.NoError(t, err)
-
-	cli7.assertS2CPacket(fmt.Sprintf("<Publish ID=2 Message=<Message Topic=\"group1/topic8\" QOS=1 Retain=false Payload=%x> Dup=false>", msg8))
-	cli7.assertS2CPacketTimeout()
-
-	fmt.Println("--> test rule4 passed <--")
-
-	// test rule5
+	// rule5 clients
 	ops9 := mqtt.NewClientOptions()
 	ops9.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
 	ops9.ClientID = "rule5-target"
@@ -323,7 +249,7 @@ rules:
 			QOS:   1,
 		},
 	}
-	cli9 := newMockMqttClient(t, &ops9)
+	cli9 := newMqttClient(t, &ops9)
 	err = cli9.start()
 	assert.NoError(t, err)
 	defer cli9.close()
@@ -331,35 +257,12 @@ rules:
 	ops10 := mqtt.NewClientOptions()
 	ops10.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
 	ops10.ClientID = "rule5-source"
-	cli10 := newMockMqttClient(t, &ops10)
+	cli10 := newMqttClient(t, &ops10)
 	err = cli10.start()
 	assert.NoError(t, err)
 	defer cli10.close()
 
-	pub10 := mqtt.NewPublish()
-	pub10.ID = 100
-	msg10 := []byte(`{"name":"topic9"}`)
-	pub10.Message = packet.Message{
-		Topic:   "group1/topic9",
-		Payload: msg10,
-		QOS:     1,
-	}
-	err = cli10.pub(pub10)
-	assert.NoError(t, err)
-
-	cli9.assertS2CPacket(fmt.Sprintf("<Publish ID=0 Message=<Message Topic=\"group1/topic10\" QOS=0 Retain=false Payload=%x> Dup=false>", msg10))
-	cli9.assertS2CPacketTimeout()
-
-	pub10.ID = 101
-	err = cli10.pub(pub10)
-	assert.NoError(t, err)
-
-	cli9.assertS2CPacket(fmt.Sprintf("<Publish ID=0 Message=<Message Topic=\"group1/topic10\" QOS=0 Retain=false Payload=%x> Dup=false>", msg10))
-	cli9.assertS2CPacketTimeout()
-
-	fmt.Println("--> test rule5 passed <--")
-
-	// test rule6
+	// rule6 clients
 	ops11 := mqtt.NewClientOptions()
 	ops11.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
 	ops11.ClientID = "rule6-target"
@@ -369,7 +272,7 @@ rules:
 			QOS:   1,
 		},
 	}
-	cli11 := newMockMqttClient(t, &ops11)
+	cli11 := newMqttClient(t, &ops11)
 	err = cli11.start()
 	assert.NoError(t, err)
 	defer cli11.close()
@@ -377,31 +280,105 @@ rules:
 	ops12 := mqtt.NewClientOptions()
 	ops12.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
 	ops12.ClientID = "rule6-source"
-	cli12 := newMockMqttClient(t, &ops12)
+	cli12 := newMqttClient(t, &ops12)
 	err = cli12.start()
 	assert.NoError(t, err)
 	defer cli12.close()
 
-	pub12 := mqtt.NewPublish()
-	pub12.ID = 100
-	msg12 := []byte(`{"name":"topic11"}`)
-	pub12.Message = packet.Message{
-		Topic:   "group1/topic11",
-		Payload: msg12,
-		QOS:     1,
-	}
+	// ensure client of rule connected successfully
+	time.Sleep(time.Second)
+
+	fmt.Println("--> all clients init successfully <--")
+
+	// test rule1
+	pub2 := newPublishPacket(1, 1, "group1/topic1", `"name":"topic1"`)
+	err = cli2.pub(pub2)
+	assert.NoError(t, err)
+
+	msg2 := []byte(`{"hello"":"node85"}`)
+	cli1.assertS2CPacket(fmt.Sprintf("<Publish ID=1 Message=<Message Topic=\"group1/topic2\" QOS=1 Retain=false Payload=%x> Dup=false>", msg2))
+	cli1.assertS2CPacketTimeout()
+
+	pub20 := newPublishPacket(2, 1, "group1/topic1", `"name":"topic1"`)
+	err = cli2.pub(pub20)
+	assert.NoError(t, err)
+
+	cli1.assertS2CPacket(fmt.Sprintf("<Publish ID=2 Message=<Message Topic=\"group1/topic2\" QOS=1 Retain=false Payload=%x> Dup=false>", msg2))
+	cli1.assertS2CPacketTimeout()
+
+	fmt.Println("--> test rule1 passed <--")
+
+	// test rule2
+	pub4 := newPublishPacket(1, 1, "group1/topic3", `{"name":"topic3"}`)
+	err = cli4.pub(pub4)
+	assert.NoError(t, err)
+	cli3.assertS2CPacketTimeout()
+
+	fmt.Println("--> test rule2 passed <--")
+
+	// test rule3
+	pub6 := newPublishPacket(1, 1, "group1/topic5", `{"name":"topic5"}`)
+	err = cli6.pub(pub6)
+	assert.NoError(t, err)
+	cli5.assertS2CPacketTimeout()
+
+	fmt.Println("--> test rule3 passed <--")
+
+	// test rule4
+	msg8 := `{"name":"topic7"}`
+	pub8 := newPublishPacket(1, 1, "group1/topic7", msg8)
+	err = cli8.pub(pub8)
+	assert.NoError(t, err)
+
+	cli7.assertS2CPacket(fmt.Sprintf("<Publish ID=1 Message=<Message Topic=\"group1/topic8\" QOS=1 Retain=false Payload=%x> Dup=false>", msg8))
+	cli7.assertS2CPacketTimeout()
+
+	msg80 := `{"name":"topic7"}`
+	pub80 := newPublishPacket(2, 1, "group1/topic7", msg80)
+	err = cli8.pub(pub80)
+	assert.NoError(t, err)
+
+	cli7.assertS2CPacket(fmt.Sprintf("<Publish ID=2 Message=<Message Topic=\"group1/topic8\" QOS=1 Retain=false Payload=%x> Dup=false>", msg80))
+	cli7.assertS2CPacketTimeout()
+
+	fmt.Println("--> test rule4 passed <--")
+
+	// test rule5
+	msg10 := `{"name":"topic9"}`
+	pub10 := newPublishPacket(1, 1, "group1/topic9", msg10)
+	err = cli10.pub(pub10)
+	assert.NoError(t, err)
+
+	cli9.assertS2CPacket(fmt.Sprintf("<Publish ID=0 Message=<Message Topic=\"group1/topic10\" QOS=0 Retain=false Payload=%x> Dup=false>", msg10))
+	cli9.assertS2CPacketTimeout()
+
+	msg100 := `{"name":"topic9"}`
+	pub100 := newPublishPacket(1, 1, "group1/topic9", msg100)
+	err = cli10.pub(pub100)
+	assert.NoError(t, err)
+
+	cli9.assertS2CPacket(fmt.Sprintf("<Publish ID=0 Message=<Message Topic=\"group1/topic10\" QOS=0 Retain=false Payload=%x> Dup=false>", msg100))
+	cli9.assertS2CPacketTimeout()
+
+	fmt.Println("--> test rule5 passed <--")
+
+	// test rule6
+	msg12 := `{"name":"topic11"}`
+	pub12 := newPublishPacket(1, 1, "group1/topic11", msg12)
 	err = cli12.pub(pub12)
 	assert.NoError(t, err)
 
 	cli11.assertS2CPacket(fmt.Sprintf("<Publish ID=0 Message=<Message Topic=\"group1/topic12\" QOS=0 Retain=false Payload=%x> Dup=false>", msg12))
 	cli11.assertS2CPacketTimeout()
 
-	pub12.ID = 101
-	err = cli12.pub(pub12)
+	msg120 := `{"name":"topic11"}`
+	pub120 := newPublishPacket(2, 1, "group1/topic11", msg120)
+	err = cli12.pub(pub120)
 	assert.NoError(t, err)
 
-	cli11.assertS2CPacket(fmt.Sprintf("<Publish ID=0 Message=<Message Topic=\"group1/topic12\" QOS=0 Retain=false Payload=%x> Dup=false>", msg12))
+	cli11.assertS2CPacket(fmt.Sprintf("<Publish ID=0 Message=<Message Topic=\"group1/topic12\" QOS=0 Retain=false Payload=%x> Dup=false>", msg120))
 	cli11.assertS2CPacketTimeout()
+
 	fmt.Println("--> test rule6 passed <--")
 }
 
@@ -450,7 +427,7 @@ session:
 	err = utils.UnmarshalYAML([]byte(brokerConf1), &brokerCfg1)
 	assert.NoError(t, err)
 
-	broker1, err := newMockBroker(brokerCfg1)
+	broker1, err := newBroker(brokerCfg1)
 	assert.NoError(t, err)
 	defer broker1.close()
 
@@ -488,9 +465,7 @@ rules:
 		}
 	}()
 
-	time.Sleep(time.Second)
-
-	// test rule1
+	// clients
 	ops1 := mqtt.NewClientOptions()
 	ops1.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
 	ops1.ClientID = "rule1-target"
@@ -502,7 +477,7 @@ rules:
 			QOS:   1,
 		},
 	}
-	cli1 := newMockMqttClient(t, &ops1)
+	cli1 := newMqttClient(t, &ops1)
 	err = cli1.start()
 	assert.NoError(t, err)
 	defer cli1.close()
@@ -512,26 +487,25 @@ rules:
 	ops2.ClientID = "rule1-source"
 	ops2.Username = "test"
 	ops2.Password = "hahaha"
-	cli2 := newMockMqttClient(t, &ops2)
+	cli2 := newMqttClient(t, &ops2)
 	err = cli2.start()
 	assert.NoError(t, err)
 	defer cli2.close()
 
-	pub2 := mqtt.NewPublish()
-	pub2.ID = 100
-	msg := []byte(`{"name":"topic1"}`)
-	pub2.Message = packet.Message{
-		Topic:   "group1/topic1",
-		Payload: msg,
-		QOS:     1,
-	}
+	time.Sleep(time.Second)
+
+	// test rule1
+	msg := `{"name":"topic1"}`
+	pub2 := newPublishPacket(1, 1, "group1/topic1", msg)
 	err = cli2.pub(pub2)
 	assert.NoError(t, err)
+
 	cli1.assertS2CPacket(fmt.Sprintf("<Publish ID=1 Message=<Message Topic=\"group1/topic2\" QOS=1 Retain=false Payload=%x> Dup=false>", msg))
 	cli1.assertS2CPacketTimeout()
 
-	pub2.ID = 101
-	err = cli2.pub(pub2)
+	msg0 := `{"name":"topic1"}`
+	pub20 := newPublishPacket(2, 1, "group1/topic1", msg0)
+	err = cli2.pub(pub20)
 	assert.NoError(t, err)
 
 	cli1.assertS2CPacket(fmt.Sprintf("<Publish ID=2 Message=<Message Topic=\"group1/topic2\" QOS=1 Retain=false Payload=%x> Dup=false>", msg))
@@ -548,7 +522,7 @@ type mockBroker struct {
 	lis *listener.Manager
 }
 
-func newMockBroker(cfg mockBrokerConfig) (*mockBroker, error) {
+func newBroker(cfg mockBrokerConfig) (*mockBroker, error) {
 	var err error
 	b := &mockBroker{}
 
@@ -574,7 +548,7 @@ func (b *mockBroker) close() {
 	}
 }
 
-func mockHttp(t *testing.T, port int, funcSucc, funcErr, funcEmpty string) {
+func newHttp(t *testing.T, port int, funcSucc, funcErr, funcEmpty string) {
 	router := routing.New()
 	router.Post("/"+funcSucc, func(c *routing.Context) error {
 		c.Response.Header.Set("Content-Type", "application/json")
@@ -593,39 +567,39 @@ func mockHttp(t *testing.T, port int, funcSucc, funcErr, funcEmpty string) {
 	}()
 }
 
-type mockMqttClient struct {
+type mqttClient struct {
 	t   *testing.T
 	cli *mqtt.Client
 	s2c chan mqtt.Packet
 }
 
-func newMockMqttClient(t *testing.T, ops *mqtt.ClientOptions) *mockMqttClient {
+func newMqttClient(t *testing.T, ops *mqtt.ClientOptions) *mqttClient {
 	cli := mqtt.NewClient(*ops)
-	return &mockMqttClient{
+	return &mqttClient{
 		t:   t,
 		cli: cli,
 		s2c: make(chan mqtt.Packet, 20),
 	}
 }
 
-func (c *mockMqttClient) start() error {
+func (c *mqttClient) start() error {
 	return c.cli.Start(c)
 }
 
-func (c *mockMqttClient) pub(pkt mqtt.Packet) error {
+func (c *mqttClient) pub(pkt mqtt.Packet) error {
 	return c.cli.Send(pkt)
 }
 
-func (c *mockMqttClient) close() error {
+func (c *mqttClient) close() error {
 	return c.cli.Close()
 }
 
-func (c *mockMqttClient) OnPublish(in *packet.Publish) error {
+func (c *mqttClient) OnPublish(in *packet.Publish) error {
 	c.s2c <- in
 	return nil
 }
 
-func (c *mockMqttClient) assertS2CPacket(expect string) {
+func (c *mqttClient) assertS2CPacket(expect string) {
 	select {
 	case pkt := <-c.s2c:
 		assert.NotNil(c.t, pkt)
@@ -635,7 +609,7 @@ func (c *mockMqttClient) assertS2CPacket(expect string) {
 	}
 }
 
-func (c *mockMqttClient) assertS2CPacketTimeout() {
+func (c *mqttClient) assertS2CPacketTimeout() {
 	select {
 	case pkt := <-c.s2c:
 		assert.Fail(c.t, "receive unexpected packet:", pkt.String())
@@ -643,12 +617,23 @@ func (c *mockMqttClient) assertS2CPacketTimeout() {
 	}
 }
 
-func (c *mockMqttClient) OnPuback(pkt *packet.Puback) error {
+func (c *mqttClient) OnPuback(pkt *packet.Puback) error {
 	return nil
 }
 
-func (c *mockMqttClient) OnError(error error) {
+func (c *mqttClient) OnError(error error) {
 	return
+}
+
+func newPublishPacket(id, qos int, topic, payload string) *mqtt.Publish {
+	pub := mqtt.NewPublish()
+	pub.ID = packet.ID(id)
+	pub.Message = packet.Message{
+		Topic:   topic,
+		Payload: []byte(payload),
+		QOS:     packet.QOS(qos),
+	}
+	return pub
 }
 
 func getFreePort() (int, error) {
