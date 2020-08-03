@@ -25,8 +25,8 @@ import (
 
 func TestRule(t *testing.T) {
 	cfg := log.Config{
-		Level:      "debug",
-		Encoding:   "json",
+		Level:    "debug",
+		Encoding: "json",
 	}
 
 	_, err := log.Init(cfg)
