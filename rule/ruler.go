@@ -93,7 +93,7 @@ func newRuler(rule RuleInfo, clients map[string]ClientInfo) (*Ruler, error) {
 			}
 		}
 		if target == nil || len(data) == 0 {
-			if rule.Source.QOS == 1 {
+			if pkt.Message.QOS == 1 {
 				puback := packet.NewPuback()
 				puback.ID = pkt.ID
 				err := source.SendOrDrop(puback)

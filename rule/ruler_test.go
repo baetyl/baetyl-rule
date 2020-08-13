@@ -1,6 +1,7 @@
 package rule
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -326,9 +327,15 @@ rules:
 	fmt.Println("--> test rule2 passed <--")
 
 	// test rule3
-	pub6 := newPublishPacket(1, 1, "group1/topic5", `{"name":"topic5"}`)
+	pub6 := newPublishPacket(1, 1, "group1/topic5", `{"empty":"true"}`)
 	err = cli6.pub(pub6)
 	assert.NoError(t, err)
+	cli5.assertS2CPacketTimeout()
+
+	pub61 := newPublishPacket(1, 1, "group1/topic5", `{"notempty":"true"}`)
+	err = cli6.pub(pub61)
+	assert.NoError(t, err)
+	cli5.assertS2CPacket(fmt.Sprintf("<Publish ID=1 Message=<Message Topic=\"group1/topic6\" QOS=1 Retain=false Payload=%x> Dup=false>", `{"hello"":"notempty"}`))
 	cli5.assertS2CPacketTimeout()
 
 	fmt.Println("--> test rule3 passed <--")
@@ -568,6 +575,13 @@ func newHttp(t *testing.T, port int, funcSucc, funcErr, funcEmpty string) {
 		return errors.New("func error")
 	})
 	router.Post("/"+funcEmpty, func(c *routing.Context) error {
+		value := map[string]string{}
+		err := json.Unmarshal(c.Request.Body(), &value)
+		assert.NoError(t, err)
+		if _, ok := value["empty"]; !ok {
+			c.Response.Header.Set("Content-Type", "application/json")
+			c.SetBody([]byte(`{"hello"":"notempty"}`))
+		}
 		return nil
 	})
 	go func() {
