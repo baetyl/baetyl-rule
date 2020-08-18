@@ -673,3 +673,91 @@ func getFreePort() (int, error) {
 	defer l.Close()
 	return l.Addr().(*net.TCPAddr).Port, nil
 }
+
+type mockContext struct{}
+
+func (c *mockContext) NodeName() string {
+	return ""
+}
+
+func (c *mockContext) AppName() string {
+	return ""
+}
+
+func (c *mockContext) AppVersion() string {
+	return ""
+}
+
+func (c *mockContext) ServiceName() string {
+	return ""
+}
+
+func (c *mockContext) ConfFile() string {
+	return ""
+}
+
+func (c *mockContext) RunMode() string {
+	return ""
+}
+
+func (c *mockContext) BrokerHost() string {
+	return ""
+}
+
+func (c *mockContext) BrokerPort() string {
+	return ""
+}
+
+func (c *mockContext) FunctionHost() string {
+	return ""
+}
+
+func (c *mockContext) FunctionHttpPort() string {
+	return ""
+}
+
+func (c *mockContext) SystemConfig() *context.SystemConfig {
+	return nil
+}
+
+func (c *mockContext) Log() *log.Logger {
+	return nil
+}
+
+func (c *mockContext) Wait() {}
+
+func (c *mockContext) WaitChan() <-chan os.Signal {
+	return nil
+}
+
+func (c *mockContext) Load(key interface{}) (value interface{}, ok bool) {
+	return nil, false
+}
+
+func (c *mockContext) Store(key, value interface{}) {}
+
+func (c *mockContext) LoadOrStore(key, value interface{}) (actual interface{}, loaded bool) {
+	return nil, false
+}
+
+func (c *mockContext) Delete(key interface{}) {}
+
+func (c *mockContext) CheckSystemCert() error {
+	return nil
+}
+
+func (c *mockContext) LoadCustomConfig(cfg interface{}, files ...string) error {
+	return nil
+}
+
+func (c *mockContext) NewFunctionHttpClient() (*http.Client, error) {
+	return nil, nil
+}
+
+func (c *mockContext) NewSystemBrokerClientConfig() (mqtt.ClientConfig, error) {
+	return mqtt.ClientConfig{}, nil
+}
+
+func (c *mockContext) NewBrokerClient(mqtt.ClientConfig) (*mqtt.Client, error) {
+	return nil, nil
+}
