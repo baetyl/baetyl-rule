@@ -12,8 +12,13 @@ github.com/baetyl/baetyl-broker/v2 v2.0.1-rc3 h1:b/IO4HupUyK31UNvREP4cUZoaOBfdis
 github.com/baetyl/baetyl-broker/v2 v2.0.1-rc3/go.mod h1:Ydk0Sn8wpkAAdDEQ8PEH+YVsmd5Rbnidz/fbzzgXKUE=
 github.com/baetyl/baetyl-go/v2 v2.0.22 h1:3yOWYHxzCRD2lrPFek5NzflGzg3tmU51IGdt5bn+I84=
 github.com/baetyl/baetyl-go/v2 v2.0.22/go.mod h1:J4hBGXtzd43Ie1skV4jIRKUxKWLBhgk18gS+BlKvJkk=
+<<<<<<< HEAD
 github.com/baetyl/baetyl-go/v2 v2.0.24 h1:rszEK5O6RcfKUEfmeLdThKs9elc5TWXYranFIr/tHLI=
 github.com/baetyl/baetyl-go/v2 v2.0.24/go.mod h1:J4hBGXtzd43Ie1skV4jIRKUxKWLBhgk18gS+BlKvJkk=
+=======
+github.com/baetyl/baetyl-go/v2 v2.0.23 h1:3Qqi8CRxEB49n+Dl421S9Y3T1/XVY22WWo7sPMNTDR4=
+github.com/baetyl/baetyl-go/v2 v2.0.23/go.mod h1:J4hBGXtzd43Ie1skV4jIRKUxKWLBhgk18gS+BlKvJkk=
+>>>>>>> support load system cert
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/bradfitz/gomemcache v0.0.0-20170208213004-1952afaa557d/go.mod h1:PmM6Mmwb0LSuEubjR8N7PtNe1KxZLtOUHtbeikc5h60=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
