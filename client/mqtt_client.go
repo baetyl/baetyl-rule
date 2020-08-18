@@ -15,7 +15,7 @@ func NewMqttClient(cfg *mqtt.ClientConfig) (Client, error) {
 		return nil, errors.Trace(err)
 	}
 
-	cli := mqtt.NewClient(*ops)
+	cli := mqtt.NewClient(ops)
 	source := &MqttClient{
 		cli: cli,
 	}

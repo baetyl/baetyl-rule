@@ -2,7 +2,7 @@ package rule
 
 import (
 	"encoding/json"
-	"github.com/baetyl/baetyl-go/utils"
+	"github.com/baetyl/baetyl-go/v2/utils"
 )
 
 type kind string
