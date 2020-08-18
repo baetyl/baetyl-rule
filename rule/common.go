@@ -5,7 +5,7 @@ import (
 
 	"github.com/baetyl/baetyl-go/v2/errors"
 	"github.com/baetyl/baetyl-go/v2/mqtt"
-	"github.com/baetyl/baetyl-rule/client"
+	"github.com/baetyl/baetyl-rule/v2/client"
 )
 
 const (

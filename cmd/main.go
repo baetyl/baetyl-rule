@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/baetyl/baetyl-go/v2/context"
-	"github.com/baetyl/baetyl-rule/rule"
+	"github.com/baetyl/baetyl-rule/v2/rule"
 )
 
 func main() {

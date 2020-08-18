@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/256dpi/gomqtt/packet"
-	"github.com/baetyl/baetyl-broker/listener"
-	"github.com/baetyl/baetyl-broker/session"
+	"github.com/baetyl/baetyl-broker/v2/listener"
+	"github.com/baetyl/baetyl-broker/v2/session"
 	"github.com/baetyl/baetyl-go/v2/log"
 	"github.com/baetyl/baetyl-go/v2/mqtt"
 	"github.com/baetyl/baetyl-go/v2/utils"
@@ -167,7 +167,7 @@ rules:
 			QOS:   1,
 		},
 	}
-	cli1 := newMqttClient(t, &ops1)
+	cli1 := newMqttClient(t, ops1)
 	err = cli1.start()
 	assert.NoError(t, err)
 	defer cli1.close()
@@ -175,7 +175,7 @@ rules:
 	ops2 := mqtt.NewClientOptions()
 	ops2.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
 	ops2.ClientID = "rule1-source"
-	cli2 := newMqttClient(t, &ops2)
+	cli2 := newMqttClient(t, ops2)
 	err = cli2.start()
 	assert.NoError(t, err)
 	defer cli2.close()
@@ -190,7 +190,7 @@ rules:
 			QOS:   1,
 		},
 	}
-	cli3 := newMqttClient(t, &ops3)
+	cli3 := newMqttClient(t, ops3)
 	err = cli3.start()
 	assert.NoError(t, err)
 	defer cli3.close()
@@ -198,7 +198,7 @@ rules:
 	ops4 := mqtt.NewClientOptions()
 	ops4.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
 	ops4.ClientID = "rule2-source"
-	cli4 := newMqttClient(t, &ops4)
+	cli4 := newMqttClient(t, ops4)
 	err = cli4.start()
 	assert.NoError(t, err)
 	defer cli4.close()
@@ -213,7 +213,7 @@ rules:
 			QOS:   1,
 		},
 	}
-	cli5 := newMqttClient(t, &ops5)
+	cli5 := newMqttClient(t, ops5)
 	err = cli5.start()
 	assert.NoError(t, err)
 	defer cli5.close()
@@ -221,7 +221,7 @@ rules:
 	ops6 := mqtt.NewClientOptions()
 	ops6.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
 	ops6.ClientID = "rule3-source"
-	cli6 := newMqttClient(t, &ops6)
+	cli6 := newMqttClient(t, ops6)
 	err = cli6.start()
 	assert.NoError(t, err)
 	defer cli6.close()
@@ -236,7 +236,7 @@ rules:
 			QOS:   1,
 		},
 	}
-	cli7 := newMqttClient(t, &ops7)
+	cli7 := newMqttClient(t, ops7)
 	err = cli7.start()
 	assert.NoError(t, err)
 	defer cli7.close()
@@ -244,7 +244,7 @@ rules:
 	ops8 := mqtt.NewClientOptions()
 	ops8.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
 	ops8.ClientID = "rule4-source"
-	cli8 := newMqttClient(t, &ops8)
+	cli8 := newMqttClient(t, ops8)
 	err = cli8.start()
 	assert.NoError(t, err)
 	defer cli8.close()
@@ -259,7 +259,7 @@ rules:
 			QOS:   1,
 		},
 	}
-	cli9 := newMqttClient(t, &ops9)
+	cli9 := newMqttClient(t, ops9)
 	err = cli9.start()
 	assert.NoError(t, err)
 	defer cli9.close()
@@ -267,7 +267,7 @@ rules:
 	ops10 := mqtt.NewClientOptions()
 	ops10.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
 	ops10.ClientID = "rule5-source"
-	cli10 := newMqttClient(t, &ops10)
+	cli10 := newMqttClient(t, ops10)
 	err = cli10.start()
 	assert.NoError(t, err)
 	defer cli10.close()
@@ -282,7 +282,7 @@ rules:
 			QOS:   1,
 		},
 	}
-	cli11 := newMqttClient(t, &ops11)
+	cli11 := newMqttClient(t, ops11)
 	err = cli11.start()
 	assert.NoError(t, err)
 	defer cli11.close()
@@ -290,7 +290,7 @@ rules:
 	ops12 := mqtt.NewClientOptions()
 	ops12.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
 	ops12.ClientID = "rule6-source"
-	cli12 := newMqttClient(t, &ops12)
+	cli12 := newMqttClient(t, ops12)
 	err = cli12.start()
 	assert.NoError(t, err)
 	defer cli12.close()
@@ -493,7 +493,7 @@ rules:
 			QOS:   1,
 		},
 	}
-	cli1 := newMqttClient(t, &ops1)
+	cli1 := newMqttClient(t, ops1)
 	err = cli1.start()
 	assert.NoError(t, err)
 	defer cli1.close()
@@ -503,7 +503,7 @@ rules:
 	ops2.ClientID = "rule1-source"
 	ops2.Username = "test"
 	ops2.Password = "hahaha"
-	cli2 := newMqttClient(t, &ops2)
+	cli2 := newMqttClient(t, ops2)
 	err = cli2.start()
 	assert.NoError(t, err)
 	defer cli2.close()
@@ -597,7 +597,7 @@ type mqttClient struct {
 }
 
 func newMqttClient(t *testing.T, ops *mqtt.ClientOptions) *mqttClient {
-	cli := mqtt.NewClient(*ops)
+	cli := mqtt.NewClient(ops)
 	return &mqttClient{
 		t:   t,
 		cli: cli,
