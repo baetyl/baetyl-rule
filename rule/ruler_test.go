@@ -16,6 +16,7 @@ import (
 	"github.com/256dpi/gomqtt/packet"
 	"github.com/baetyl/baetyl-broker/v2/listener"
 	"github.com/baetyl/baetyl-broker/v2/session"
+	"github.com/baetyl/baetyl-go/v2/http"
 	"github.com/baetyl/baetyl-go/v2/log"
 	"github.com/baetyl/baetyl-go/v2/mqtt"
 	"github.com/baetyl/baetyl-go/v2/utils"
@@ -141,21 +142,21 @@ rules:
 
 	newHttp(t, port3, funcSucc, funcErr, funcEmpty)
 
+	ops := http.NewClientOptions()
+	ops.Address = fmt.Sprintf("http://127.0.0.1:%d", port3)
+	functionClient := http.NewClient(ops)
+
 	var rulesConfig Config
 	err = utils.UnmarshalYAML([]byte(rulesConf), &rulesConfig)
 	assert.NoError(t, err)
 
-	rules, err := NewRulers(rulesConfig)
+	rules, err := NewRulers(rulesConfig, functionClient)
 	assert.NoError(t, err)
 	defer func() {
 		for _, rule := range rules {
 			rule.Close()
 		}
 	}()
-
-	rules[0].function.URL = fmt.Sprintf("http://127.0.0.1:%d/%s", port3, funcSucc)
-	rules[1].function.URL = fmt.Sprintf("http://127.0.0.1:%d/%s", port3, funcErr)
-	rules[2].function.URL = fmt.Sprintf("http://127.0.0.1:%d/%s", port3, funcEmpty)
 
 	// rule1 clients
 	ops1 := mqtt.NewClientOptions()
@@ -410,30 +411,30 @@ func TestSSL(t *testing.T) {
 
 	brokerConf1 := `
 listeners:
-  - address: tcp://0.0.0.0:PORT1
-  - address: ssl://0.0.0.0:PORT2
-    ca: ../example/var/lib/baetyl/testcert/ca.crt
-    key: ../example/var/lib/baetyl/testcert/server.key
-    cert: ../example/var/lib/baetyl/testcert/server.crt
+ - address: tcp://0.0.0.0:PORT1
+ - address: ssl://0.0.0.0:PORT2
+   ca: ../example/var/lib/baetyl/testcert/ca.crt
+   key: ../example/var/lib/baetyl/testcert/server.key
+   cert: ../example/var/lib/baetyl/testcert/server.crt
 principals:
-  - username: test
-    password: hahaha
-    permissions:
-      - action: pub
-        permit: ["#"]
-      - action: sub
-        permit: ["#"]
-  - username: client
-    permissions:
-      - action: pub
-        permit: ["#"]
-      - action: sub
-        permit: ["#"]
+ - username: test
+   password: hahaha
+   permissions:
+     - action: pub
+       permit: ["#"]
+     - action: sub
+       permit: ["#"]
+ - username: client
+   permissions:
+     - action: pub
+       permit: ["#"]
+     - action: sub
+       permit: ["#"]
 session:
-  persistence:
-    store:
-      source: DIR
-  resendInterval: 5s
+ persistence:
+   store:
+     source: DIR
+ resendInterval: 5s
 `
 	brokerConf1 = strings.Replace(brokerConf1, "DIR", path.Join(dir, "test1.db"), -1)
 	brokerConf1 = strings.Replace(brokerConf1, "PORT1", strconv.Itoa(port1), -1)
@@ -449,23 +450,23 @@ session:
 
 	rulesConf := `
 clients:
-  - name: mock-broker
-    kind: mqtt
-    address: 'ssl://127.0.0.1:PORT2'
-    ca: ../example/var/lib/baetyl/testcert/ca.crt
-    key: ../example/var/lib/baetyl/testcert/client.key
-    cert: ../example/var/lib/baetyl/testcert/client.crt
-    insecureSkipVerify: true
+ - name: mock-broker
+   kind: mqtt
+   address: 'ssl://127.0.0.1:PORT2'
+   ca: ../example/var/lib/baetyl/testcert/ca.crt
+   key: ../example/var/lib/baetyl/testcert/client.key
+   cert: ../example/var/lib/baetyl/testcert/client.crt
+   insecureSkipVerify: true
 rules:
-  - name: rule1
-    source:
-      client: mock-broker
-      topic: group1/topic1
-      qos: 1
-    target:
-      client: mock-broker
-      topic: group1/topic2
-      qos: 1
+ - name: rule1
+   source:
+     client: mock-broker
+     topic: group1/topic1
+     qos: 1
+   target:
+     client: mock-broker
+     topic: group1/topic2
+     qos: 1
 `
 	rulesConf = strings.Replace(rulesConf, "PORT2", strconv.Itoa(port2), -1)
 
@@ -473,7 +474,7 @@ rules:
 	err = utils.UnmarshalYAML([]byte(rulesConf), &rulesConfig)
 	assert.NoError(t, err)
 
-	rules, err := NewRulers(rulesConfig)
+	rules, err := NewRulers(rulesConfig, nil)
 	assert.NoError(t, err)
 	defer func() {
 		for _, rule := range rules {

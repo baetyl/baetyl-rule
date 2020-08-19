@@ -44,7 +44,7 @@ rules:
 	var c Config
 	err = utils.LoadYAML(file1, &c)
 	assert.NoError(t, err)
-	assert.Equal(t, c.Clients[0].Kind, kindMqtt)
+	assert.Equal(t, c.Clients[0].Kind, KindMqtt)
 	assert.Equal(t, c.Clients[0].Name, "iotcore")
 	cfg := new(mqtt.ClientConfig)
 	err = c.Clients[0].Parse(cfg)

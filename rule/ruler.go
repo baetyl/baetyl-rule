@@ -10,21 +10,17 @@ import (
 )
 
 type Ruler struct {
-	cfg      RuleInfo
-	source   client.Client
-	target   client.Client
-	function *client.Function
-	log      *log.Logger
+	cfg    RuleInfo
+	source client.Client
+	target client.Client
+	log    *log.Logger
 }
 
-func NewRulers(cfg Config) ([]*Ruler, error) {
+func NewRulers(cfg Config, functionClient *http.Client) ([]*Ruler, error) {
 	clients := make(map[string]ClientInfo)
 	for _, v := range cfg.Clients {
 		clients[v.Name] = v
 	}
-
-	// baetyl-broker client is the mqtt broker in edge
-	clients[BaetylBroker] = getBrokerClient()
 
 	for _, rule := range cfg.Rules {
 		_, ok := clients[rule.Source.Client]
@@ -43,7 +39,7 @@ func NewRulers(cfg Config) ([]*Ruler, error) {
 
 	rulers := make([]*Ruler, 0)
 	for _, l := range cfg.Rules {
-		ruler, err := newRuler(l, clients)
+		ruler, err := newRuler(l, clients, functionClient)
 		if err != nil {
 			return nil, err
 		}
@@ -52,17 +48,8 @@ func NewRulers(cfg Config) ([]*Ruler, error) {
 	return rulers, nil
 }
 
-func newRuler(rule RuleInfo, clients map[string]ClientInfo) (*Ruler, error) {
+func newRuler(rule RuleInfo, clients map[string]ClientInfo, functionClient *http.Client) (*Ruler, error) {
 	logger := log.With(log.Any("rule", "ruler"), log.Any("name", rule.Name))
-
-	var function *client.Function
-	if rule.Function != nil {
-		ops := http.NewClientOptions()
-		function = &client.Function{
-			URL: resolveFunctionAddress(rule.Function.Name),
-			CLI: http.NewClient(ops),
-		}
-	}
 
 	var target client.Client
 	if rule.Target != nil {
@@ -85,8 +72,8 @@ func newRuler(rule RuleInfo, clients map[string]ClientInfo) (*Ruler, error) {
 
 	source.Start(mqtt.NewObserverWrapper(func(pkt *packet.Publish) error {
 		data := pkt.Message.Payload
-		if function != nil {
-			data, err = function.Post(pkt.Message.Payload)
+		if rule.Function != nil {
+			data, err = functionClient.Call(rule.Function.Name, pkt.Message.Payload)
 			if err != nil {
 				logger.Error("error occured when invoke function in source", log.Any("function", rule.Function.Name), log.Error(err))
 				return nil
@@ -138,11 +125,10 @@ func newRuler(rule RuleInfo, clients map[string]ClientInfo) (*Ruler, error) {
 	}
 
 	return &Ruler{
-		cfg:      rule,
-		source:   source,
-		target:   target,
-		function: function,
-		log:      logger,
+		cfg:    rule,
+		source: source,
+		target: target,
+		log:    logger,
 	}, nil
 }
 

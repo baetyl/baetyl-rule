@@ -7,13 +7,34 @@ import (
 
 func main() {
 	context.Run(func(ctx context.Context) error {
+		if err := ctx.CheckSystemCert(); err != nil {
+			return err
+		}
+
 		var cfg rule.Config
 		err := ctx.LoadCustomConfig(&cfg)
 		if err != nil {
 			return err
 		}
 
-		rulers, err := rule.NewRulers(cfg)
+		// baetyl-broker client is the mqtt broker in edge
+		systemCert := ctx.SystemConfig().Certificate
+		cfg.Clients = append(cfg.Clients, rule.ClientInfo{
+			Name: "baetyl-broker",
+			Kind: rule.KindMqtt,
+			Value: map[string]interface{}{
+				"ca":   systemCert.CA,
+				"cert": systemCert.Cert,
+				"key":  systemCert.Key,
+			},
+		})
+
+		function, err := ctx.NewFunctionHttpClient()
+		if err != nil {
+			return err
+		}
+
+		rulers, err := rule.NewRulers(cfg, function)
 		if err != nil {
 			return err
 		}

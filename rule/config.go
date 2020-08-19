@@ -9,7 +9,7 @@ type kind string
 
 // All kinds
 const (
-	kindMqtt kind = "mqtt"
+	KindMqtt kind = "mqtt"
 )
 
 // Config config of rule
