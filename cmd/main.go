@@ -29,7 +29,12 @@ func main() {
 			},
 		})
 
-		rulers, err := rule.NewRulers(cfg, ctx)
+		function, err := ctx.NewFunctionHttpClient()
+		if err != nil {
+			return err
+		}
+
+		rulers, err := rule.NewRulers(cfg, function)
 		if err != nil {
 			return err
 		}
