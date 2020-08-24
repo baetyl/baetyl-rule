@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/baetyl/baetyl-go/v2/context"
 	"github.com/baetyl/baetyl-rule/v2/rule"
 )
@@ -23,9 +24,10 @@ func main() {
 			Name: "baetyl-broker",
 			Kind: rule.KindMqtt,
 			Value: map[string]interface{}{
-				"ca":   systemCert.CA,
-				"cert": systemCert.Cert,
-				"key":  systemCert.Key,
+				"address": fmt.Sprintf("%s://%s:%s", "ssl", ctx.BrokerHost(), ctx.BrokerPort()),
+				"ca":      systemCert.CA,
+				"cert":    systemCert.Cert,
+				"key":     systemCert.Key,
 			},
 		})
 

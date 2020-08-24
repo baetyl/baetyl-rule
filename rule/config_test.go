@@ -25,7 +25,6 @@ clients:
     ca: var/db/baetyl/cert/ca.pem
     cert: var/db/baetyl/cert/client.pem
     key: var/db/baetyl/cert/client.key
-    insecureSkipVerify: true
 rules:
   - name: rule1
     source:
@@ -53,5 +52,4 @@ rules:
 	assert.Equal(t, cfg.CA, "var/db/baetyl/cert/ca.pem")
 	assert.Equal(t, cfg.Cert, "var/db/baetyl/cert/client.pem")
 	assert.Equal(t, cfg.Key, "var/db/baetyl/cert/client.key")
-	assert.Equal(t, cfg.InsecureSkipVerify, true)
 }
