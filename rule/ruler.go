@@ -2,7 +2,6 @@ package rule
 
 import (
 	"github.com/256dpi/gomqtt/packet"
-	"github.com/baetyl/baetyl-go/v2/context"
 	"github.com/baetyl/baetyl-go/v2/errors"
 	"github.com/baetyl/baetyl-go/v2/http"
 	"github.com/baetyl/baetyl-go/v2/log"
@@ -52,15 +51,6 @@ func NewRulers(cfg Config, functionClient *http.Client) ([]*Ruler, error) {
 func newRuler(rule RuleInfo, clients map[string]ClientInfo, functionClient *http.Client) (*Ruler, error) {
 	logger := log.With(log.Any("rule", "ruler"), log.Any("name", rule.Name))
 
-	var function *http.Client
-	if rule.Function != nil {
-		var err error
-		function, err = ctx.NewFunctionHttpClient()
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	var target client.Client
 	if rule.Target != nil {
 		var err error
@@ -84,7 +74,6 @@ func newRuler(rule RuleInfo, clients map[string]ClientInfo, functionClient *http
 		data := pkt.Message.Payload
 		if rule.Function != nil {
 			data, err = functionClient.Call(rule.Function.Name, pkt.Message.Payload)
-
 			if err != nil {
 				logger.Error("error occured when invoke function in source", log.Any("function", rule.Function.Name), log.Error(err))
 				return nil

@@ -12,7 +12,7 @@ rules:
       qos: 1
     target:
       client: iotcore
-      topic: $iot/test-kuiper/user/a
+      topic: $iot/test/user/a
       qos: 1
     function:
       name: process

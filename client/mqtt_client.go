@@ -27,7 +27,7 @@ func (m *MqttClient) SendOrDrop(pkt mqtt.Packet) error {
 }
 
 func (m *MqttClient) Start(obs mqtt.Observer) {
-	go m.cli.Start(obs)
+	m.cli.Start(obs)
 }
 
 func (m *MqttClient) Close() error {
