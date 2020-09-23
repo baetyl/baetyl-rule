@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/baetyl/baetyl-go/v2/context"
+
 	"github.com/baetyl/baetyl-rule/v2/rule"
 )
 
