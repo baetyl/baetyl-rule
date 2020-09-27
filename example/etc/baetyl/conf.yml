@@ -1,18 +1,27 @@
-clients:
-  - name: iotcore
-    kind: mqtt
-    address: 'tcp://anxhswx.iot.gz.baidubce.com:1883'
-    username: username
-    password: password
-
-rules:
-  - name: rule1
-    source:
-      topic: group1/topic1
-      qos: 1
-    target:
-      client: iotcore
-      topic: $iot/test/user/a
-      qos: 1
-    function:
-      name: process
+clients: # 消息节点，可以从节点订阅消息，也可以发送消息节点
+  - name: iothub # 名称
+    kind: mqtt # mqtt 类型
+    address: 'ssl://u7isgiz.mqtt.iot.bj.baidubce.com:1884' # 地址
+    username: client.example.org # 用户名
+    ca: ../example/var/lib/baetyl/testcert/ca.pem # 连接节点的 CA
+    key: ../example/var/lib/baetyl/testcert/client.key # 连接节点的私钥
+    cert: ../example/var/lib/baetyl/testcert/client.pem # 连接节点的公钥
+    insecureSkipVerify: true # 是否跳过服务端证书校验
+rules: # 消息规则
+  - name: rule1 # 规则名称，必须保持唯一
+    source: # 消息源
+      topic: broker/topic1 # 消息主题
+      qos: 1 # 消息质量
+    target: # 消息目的地
+      client: iotcore # 消息节点，如果不设置，默认为 baetyl-broker
+      topic: iotcore/topic2 # 消息主题
+      qos: 0 # 消息质量
+  - name: rule2 # 规则名称，必须保持唯一
+    source: # 消息源
+      topic: broker/topic5 # 消息主题
+      qos: 0 # 消息质量
+    target: # 消息目的地
+      topic: broker/topic6 # 消息主题
+      qos: 1 # 消息质量
+    function: # 处理函数
+      name: node85 # 函数名称
