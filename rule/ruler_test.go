@@ -297,7 +297,7 @@ rules:
 	defer cli12.close()
 
 	// ensure client of rule connected successfully
-	time.Sleep(time.Second)
+	time.Sleep(2 * time.Second)
 
 	fmt.Println("--> all clients init successfully <--")
 
@@ -508,7 +508,7 @@ rules:
 	assert.NoError(t, err)
 	defer cli2.close()
 
-	time.Sleep(time.Second)
+	time.Sleep(2 * time.Second)
 
 	// test rule1
 	msg := `{"name":"topic1"}`
@@ -627,7 +627,7 @@ func (c *mqttClient) assertS2CPacket(expect string) {
 	case pkt := <-c.s2c:
 		assert.NotNil(c.t, pkt)
 		assert.Equal(c.t, expect, pkt.String())
-	case <-time.After(time.Second):
+	case <-time.After(2 * time.Second):
 		assert.Fail(c.t, "receive common timeout")
 	}
 }
@@ -636,7 +636,7 @@ func (c *mqttClient) assertS2CPacketTimeout() {
 	select {
 	case pkt := <-c.s2c:
 		assert.Fail(c.t, "receive unexpected packet:", pkt.String())
-	case <-time.After(time.Second):
+	case <-time.After(2 * time.Second):
 	}
 }
 
