@@ -7,6 +7,7 @@ clients: # 消息节点，可以从节点订阅消息，也可以发送消息节
     key: ../example/var/lib/baetyl/testcert/client.key # 连接节点的私钥
     cert: ../example/var/lib/baetyl/testcert/client.pem # 连接节点的公钥
     insecureSkipVerify: true # 是否跳过服务端证书校验
+
 rules: # 消息规则
   - name: rule1 # 规则名称，必须保持唯一
     source: # 消息源
