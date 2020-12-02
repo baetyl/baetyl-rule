@@ -26,7 +26,7 @@ func main() {
 			Name: "baetyl-broker",
 			Kind: rule.KindMqtt,
 			Value: map[string]interface{}{
-				"address": fmt.Sprintf("%s://%s:%s", "ssl", ctx.BrokerHost(), ctx.BrokerPort()),
+				"address": fmt.Sprintf("%s://%s:%s", "ssl", context.BrokerHost(), context.BrokerPort()),
 				"ca":      systemCert.CA,
 				"cert":    systemCert.Cert,
 				"key":     systemCert.Key,
