@@ -13,8 +13,8 @@ github.com/abiosoft/readline v0.0.0-20180607040430-155bce2042db/go.mod h1:rB3B4r
 github.com/baetyl/baetyl-broker/v2 v2.0.1-rc3 h1:b/IO4HupUyK31UNvREP4cUZoaOBfdiszCTo0Qq9SXoE=
 github.com/baetyl/baetyl-broker/v2 v2.0.1-rc3/go.mod h1:Ydk0Sn8wpkAAdDEQ8PEH+YVsmd5Rbnidz/fbzzgXKUE=
 github.com/baetyl/baetyl-go/v2 v2.0.22/go.mod h1:J4hBGXtzd43Ie1skV4jIRKUxKWLBhgk18gS+BlKvJkk=
-github.com/baetyl/baetyl-go/v2 v2.2.3 h1:BewOX/U6pLQYQ8L9R5CAbFUc2EGIGb1wn9mL2UFx8uY=
-github.com/baetyl/baetyl-go/v2 v2.2.3/go.mod h1:n6jClckOKHICRSFiUbVn5VUwEH6OaiSyQS3z+sW2+UA=
+github.com/baetyl/baetyl-go/v2 v2.2.4-0.20220114042103-4ba035e5dfb7 h1:4uw2QvHqxjO3npoMYHh4l7o3xvnMchnIZEwNl6dZ+04=
+github.com/baetyl/baetyl-go/v2 v2.2.4-0.20220114042103-4ba035e5dfb7/go.mod h1:+icoVFrmQKD1z2k6nU4UEodP1XMM/hXZAa+JrVRlh44=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/bradfitz/gomemcache v0.0.0-20170208213004-1952afaa557d/go.mod h1:PmM6Mmwb0LSuEubjR8N7PtNe1KxZLtOUHtbeikc5h60=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
