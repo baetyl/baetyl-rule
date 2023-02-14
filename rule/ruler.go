@@ -1,143 +1,123 @@
 package rule
 
 import (
-	"github.com/256dpi/gomqtt/packet"
+	"github.com/baetyl/baetyl-go/v2/context"
 	"github.com/baetyl/baetyl-go/v2/errors"
 	"github.com/baetyl/baetyl-go/v2/http"
 	"github.com/baetyl/baetyl-go/v2/log"
 	"github.com/baetyl/baetyl-go/v2/mqtt"
-
-	"github.com/baetyl/baetyl-rule/v2/client"
 )
 
-type Ruler struct {
-	cfg    RuleInfo
-	source client.Client
-	target client.Client
-	log    *log.Logger
+type ClientSet struct {
+	clients map[string]*SingleClient //	key: client name
+	server  *HTTPServer
 }
 
-func NewRulers(cfg Config, functionClient *http.Client) ([]*Ruler, error) {
-	clients := make(map[string]ClientInfo)
+type ClientDetail struct {
+	Name         string
+	Subscription []mqtt.QOSTopic
+	Info         ClientInfo
+}
+
+func NewRulers(ctx context.Context, cfg Config, functionClient *http.Client) (*ClientSet, error) {
+	var err error
+	clientInfo := make(map[string]*ClientDetail) // key: client name, value: client config
+	clientSet := &ClientSet{
+		clients: make(map[string]*SingleClient),
+	}
 	for _, v := range cfg.Clients {
-		clients[v.Name] = v
+		if v.Kind == KindHTTPServer {
+			// http server can only exist one
+			if clientSet.server != nil {
+				return nil, errors.New("Duplicate http source config")
+			}
+			clientSet.server, err = NewHTTPServer(v, functionClient)
+			if err != nil {
+				return nil, errors.Trace(err)
+			}
+			continue
+		}
+		clientInfo[v.Name] = &ClientDetail{
+			Name: v.Name,
+			Info: v,
+		}
+		clientSet.clients[v.Name] = &SingleClient{
+			name:    v.Name,
+			subTree: mqtt.NewTrie(),
+			rulers:  make(map[string]RuleInfo), // key: rule name
+			logger:  log.With(log.Any("client", v.Name)),
+		}
 	}
 
 	for _, rule := range cfg.Rules {
-		_, ok := clients[rule.Source.Client]
-		if !ok {
-			return nil, errors.Trace(errors.Errorf("client (%s) not found in rule (%s)", rule.Source.Client, rule.Name))
-		}
-
 		if rule.Target == nil {
 			continue
 		}
-		_, ok = clients[rule.Target.Client]
+		// Set http source rule info
+		if clientSet.server != nil && rule.Source.Client == clientSet.server.name {
+			clientSet.server.rulers[rule.Name] = rule
+			_, ok := clientInfo[rule.Target.Client]
+			if !ok {
+				return nil, errors.Trace(errors.Errorf("client (%s) not found in rule (%s)", rule.Target.Client, rule.Name))
+			}
+			continue
+		}
+		_, ok := clientInfo[rule.Source.Client]
 		if !ok {
-			return nil, errors.Trace(errors.Errorf("client (%s) not found in rule (%s)", rule.Target.Client, rule.Name))
+			return nil, errors.Trace(errors.Errorf("client (%s) not found in rule (%s)", rule.Source.Client, rule.Name))
 		}
-	}
-
-	rulers := make([]*Ruler, 0)
-	for _, l := range cfg.Rules {
-		ruler, err := newRuler(l, clients, functionClient)
-		if err != nil {
-			return nil, err
-		}
-		rulers = append(rulers, ruler)
-	}
-	return rulers, nil
-}
-
-func newRuler(rule RuleInfo, clients map[string]ClientInfo, functionClient *http.Client) (*Ruler, error) {
-	logger := log.With(log.Any("rule", "ruler"), log.Any("name", rule.Name))
-
-	var target client.Client
-	if rule.Target != nil {
-		var err error
-		target, err = NewClient(rule.Name, "target", *rule.Target, clients[rule.Target.Client])
-		if err != nil {
-			return nil, err
-		}
-
-		// source'QOS should be degraded if target'QOS is lower
 		if rule.Source.QOS > rule.Target.QOS {
 			rule.Source.QOS = rule.Target.QOS
 		}
+		clientInfo[rule.Source.Client].Subscription = append(clientInfo[rule.Source.Client].Subscription, mqtt.QOSTopic{
+			Topic: rule.Source.Topic,
+			QOS:   uint32(rule.Source.QOS),
+		})
+
+		_, ok = clientInfo[rule.Target.Client]
+		if !ok {
+			return nil, errors.Trace(errors.Errorf("client (%s) not found in rule (%s)", rule.Target.Client, rule.Name))
+		}
+		singleClient, _ := clientSet.clients[rule.Source.Client]
+		singleClient.rulers[rule.Name] = rule
+		singleClient.subTree.Add(rule.Source.Topic, rule.Name)
 	}
 
-	source, err := NewClient(rule.Name, "source", *rule.Source, clients[rule.Source.Client])
-	if err != nil {
-		return nil, err
-	}
-
-	source.Start(mqtt.NewObserverWrapper(func(pkt *packet.Publish) error {
-		data := pkt.Message.Payload
-		if rule.Function != nil {
-			data, err = functionClient.Call(rule.Function.Name, pkt.Message.Payload)
-			if err != nil {
-				logger.Error("error occured when invoke function in source", log.Any("function", rule.Function.Name), log.Error(err))
-				return nil
-			}
-		}
-		if target == nil || len(data) == 0 {
-			if pkt.Message.QOS == 1 {
-				puback := packet.NewPuback()
-				puback.ID = pkt.ID
-				err := source.SendOrDrop(puback)
-				if err != nil {
-					logger.Error("error occured when send puback in source", log.Error(err))
-				}
-			}
-			return nil
-		}
-		out := mqtt.NewPublish()
-		out.ID = pkt.ID
-		out.Dup = pkt.Dup
-		out.Message = packet.Message{
-			Topic:   rule.Target.Topic,
-			Payload: data,
-			QOS:     pkt.Message.QOS,
-			Retain:  pkt.Message.Retain,
-		}
-		err = target.SendOrDrop(out)
+	// New all clients
+	for _, v := range clientInfo {
+		cli, err := NewClient(ctx, v)
 		if err != nil {
-			logger.Error("error occured when send pkt to target in source", log.Error(err))
+			return nil, errors.Trace(err)
 		}
-		return nil
-	}, func(*packet.Puback) error {
-		return nil
-	}, func(err error) {
-		logger.Error("error occurs in source", log.Error(err))
-	}))
-
-	if target != nil {
-		target.Start(mqtt.NewObserverWrapper(func(pkt *packet.Publish) error {
-			return nil
-		}, func(pkt *packet.Puback) error {
-			err := source.SendOrDrop(pkt)
-			if err != nil {
-				logger.Error("error occured when send pkt to source in target", log.Error(err))
-			}
-			return nil
-		}, func(err error) {
-			logger.Error("error occurs in target", log.Error(err))
-		}))
+		singleClient, _ := clientSet.clients[v.Name]
+		singleClient.client = cli
+	}
+	// Start all clients
+	for _, v := range clientInfo {
+		singleClient, _ := clientSet.clients[v.Name]
+		err = singleClient.Start(clientSet.clients, functionClient)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+	}
+	// Start http server
+	if clientSet.server != nil {
+		for _, rule := range clientSet.server.rulers {
+			clientSet.server.client[rule.Target.Client] = clientSet.clients[rule.Target.Client].client
+		}
+		clientSet.server.Start()
 	}
 
-	return &Ruler{
-		cfg:    rule,
-		source: source,
-		target: target,
-		log:    logger,
-	}, nil
+	return clientSet, nil
 }
 
-func (l *Ruler) Close() {
-	if l.source != nil {
-		l.source.Close()
+func (l *ClientSet) Close() {
+	for _, v := range l.clients {
+		if v.client != nil {
+			v.client.Close()
+		}
 	}
-	if l.target != nil {
-		l.target.Close()
+	if l.server != nil {
+		l.server.Close()
 	}
 }

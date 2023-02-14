@@ -7,7 +7,10 @@ import (
 )
 
 type Client interface {
-	SendOrDrop(pkt mqtt.Packet) error
+	SendOrDrop(method string, pkt *mqtt.Publish) error
+	SendPubAck(pkt mqtt.Packet) error
 	Start(obs mqtt.Observer)
+	ResetClient(cfg *mqtt.ClientConfig)
+	SetReconnectCallback(callback mqtt.ReconnectCallback)
 	io.Closer
 }
