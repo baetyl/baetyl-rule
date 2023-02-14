@@ -2,7 +2,6 @@ package rule
 
 import (
 	"io/ioutil"
-	"os"
 	"path"
 	"testing"
 
@@ -12,9 +11,7 @@ import (
 )
 
 func TestConfig(t *testing.T) {
-	dir, err := ioutil.TempDir("", t.Name())
-	assert.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	config1 := `
 clients:
@@ -37,7 +34,7 @@ rules:
 `
 
 	file1 := path.Join(dir, "service1.yml")
-	err = ioutil.WriteFile(file1, []byte(config1), 0644)
+	err := ioutil.WriteFile(file1, []byte(config1), 0644)
 	assert.NoError(t, err)
 
 	var c Config

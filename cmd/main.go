@@ -38,15 +38,11 @@ func main() {
 			return err
 		}
 
-		rulers, err := rule.NewRulers(cfg, function)
+		rulers, err := rule.NewRulers(ctx, cfg, function)
+		defer rulers.Close()
 		if err != nil {
 			return err
 		}
-		defer func() {
-			for _, ruler := range rulers {
-				ruler.Close()
-			}
-		}()
 
 		ctx.Wait()
 		return nil

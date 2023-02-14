@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path"
@@ -16,6 +15,7 @@ import (
 	"github.com/256dpi/gomqtt/packet"
 	"github.com/baetyl/baetyl-broker/v2/listener"
 	"github.com/baetyl/baetyl-broker/v2/session"
+	"github.com/baetyl/baetyl-go/v2/context"
 	"github.com/baetyl/baetyl-go/v2/http"
 	"github.com/baetyl/baetyl-go/v2/log"
 	"github.com/baetyl/baetyl-go/v2/mqtt"
@@ -34,9 +34,7 @@ func TestRule(t *testing.T) {
 	_, err := log.Init(cfg)
 	assert.NoError(t, err)
 
-	dir, err := ioutil.TempDir("", t.Name())
-	assert.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	port1, err := getFreePort()
 	assert.NoError(t, err)
@@ -150,13 +148,9 @@ rules:
 	err = utils.UnmarshalYAML([]byte(rulesConf), &rulesConfig)
 	assert.NoError(t, err)
 
-	rules, err := NewRulers(rulesConfig, functionClient)
+	rules, err := NewRulers(nil, rulesConfig, functionClient)
+	defer rules.Close()
 	assert.NoError(t, err)
-	defer func() {
-		for _, rule := range rules {
-			rule.Close()
-		}
-	}()
 
 	// rule1 clients
 	ops1 := mqtt.NewClientOptions()
@@ -400,10 +394,7 @@ rules:
 }
 
 func TestSSL(t *testing.T) {
-	dir, err := ioutil.TempDir("", t.Name())
-	assert.NoError(t, err)
-	defer os.RemoveAll(dir)
-
+	dir := t.TempDir()
 	port1, err := getFreePort()
 	assert.NoError(t, err)
 	port2, err := getFreePort()
@@ -473,13 +464,9 @@ rules:
 	err = utils.UnmarshalYAML([]byte(rulesConf), &rulesConfig)
 	assert.NoError(t, err)
 
-	rules, err := NewRulers(rulesConfig, nil)
+	rules, err := NewRulers(nil, rulesConfig, nil)
 	assert.NoError(t, err)
-	defer func() {
-		for _, rule := range rules {
-			rule.Close()
-		}
-	}()
+	defer rules.Close()
 
 	// clients
 	ops1 := mqtt.NewClientOptions()
@@ -671,4 +658,332 @@ func getFreePort() (int, error) {
 	}
 	defer l.Close()
 	return l.Addr().(*net.TCPAddr).Port, nil
+}
+
+func TestRuleWildcard(t *testing.T) {
+	cfg := log.Config{
+		Level:    "debug",
+		Encoding: "json",
+	}
+
+	_, err := log.Init(cfg)
+	assert.NoError(t, err)
+
+	dir := t.TempDir()
+
+	port1, err := getFreePort()
+	assert.NoError(t, err)
+	port3, err := getFreePort()
+	assert.NoError(t, err)
+	funcSucc := "node85"
+	funcErr := "python36"
+	funcEmpty := "empty"
+
+	brokerConf1 := `
+listeners:
+  - address: tcp://0.0.0.0:PORT1
+session:
+  persistence:
+    store:
+      source: DIR
+  resendInterval: 5s
+`
+	brokerConf1 = strings.Replace(brokerConf1, "DIR", path.Join(dir, "test1.db"), -1)
+	brokerConf1 = strings.Replace(brokerConf1, "PORT1", strconv.Itoa(port1), -1)
+
+	rulesConf := `
+clients:
+  - name: mock-broker
+    kind: mqtt
+    address: 'tcp://127.0.0.1:PORT1'
+
+rules:
+  - name: rule1
+    source:
+      client: mock-broker
+      topic: wildcard/sharp/#
+      qos: 1
+    target:
+      client: mock-broker
+      topic: result/wildcard/sharp
+      qos: 1
+    function:
+      name: FUNCTIONSUCC
+  - name: rule2
+    source:
+      client: mock-broker
+      topic: plus/wildcard/+
+      qos: 1
+    target:
+      client: mock-broker
+      topic: result/wildcard/plus
+      qos: 1
+    function:
+      name: FUNCTIONERR
+`
+
+	rulesConf = strings.Replace(rulesConf, "PORT1", strconv.Itoa(port1), -1)
+	rulesConf = strings.Replace(rulesConf, "FUNCTIONSUCC", funcSucc, -1)
+	rulesConf = strings.Replace(rulesConf, "FUNCTIONERR", funcErr, -1)
+	rulesConf = strings.Replace(rulesConf, "FUNCTIONEMPTY", funcEmpty, -1)
+
+	var brokerCfg1 mockBrokerConfig
+	err = utils.UnmarshalYAML([]byte(brokerConf1), &brokerCfg1)
+	assert.NoError(t, err)
+
+	broker1, err := newBroker(brokerCfg1)
+	assert.NoError(t, err)
+	defer broker1.close()
+
+	newHttp(t, port3, funcSucc, funcErr, funcEmpty)
+
+	ops := http.NewClientOptions()
+	ops.Address = fmt.Sprintf("http://127.0.0.1:%d", port3)
+	functionClient := http.NewClient(ops)
+
+	var rulesConfig Config
+	err = utils.UnmarshalYAML([]byte(rulesConf), &rulesConfig)
+	assert.NoError(t, err)
+
+	rules, err := NewRulers(nil, rulesConfig, functionClient)
+	defer rules.Close()
+	assert.NoError(t, err)
+
+	// rule1 clients
+	ops1 := mqtt.NewClientOptions()
+	ops1.Address = "tcp://127.0.0.1:" + strconv.Itoa(port1)
+	ops1.ClientID = "rule1-target"
+	ops1.Subscriptions = []mqtt.Subscription{
+		{
+			Topic: "result/wildcard/sharp",
+			QOS:   1,
+		},
+		{
+			Topic: "result/wildcard/plus",
+			QOS:   1,
+		},
+	}
+	cli := newMqttClient(t, ops1)
+	err = cli.start()
+	assert.NoError(t, err)
+	defer cli.close()
+
+	// ensure client of rule connected successfully
+	time.Sleep(2 * time.Second)
+
+	fmt.Println("--> all clients init successfully <--")
+
+	// test rule1
+	pub2 := newPublishPacket(1, 1, "wildcard/sharp/A", `"name":"topic1"`)
+	err = cli.pub(pub2)
+	assert.NoError(t, err)
+
+	msg2 := []byte(`{"hello"":"node85"}`)
+	cli.assertS2CPacket(fmt.Sprintf("<Publish ID=1 Message=<Message Topic=\"result/wildcard/sharp\" QOS=1 Retain=false Payload=%x> Dup=false>", msg2))
+	cli.assertS2CPacketTimeout()
+
+	fmt.Println("--> test rule1 passed <--")
+
+	// test rule2
+	pub4 := newPublishPacket(1, 1, "plus/wildcard/B", `{"name":"topic3"}`)
+	err = cli.pub(pub4)
+	assert.NoError(t, err)
+	cli.assertS2CPacketTimeout()
+
+	fmt.Println("--> test rule2 passed <--")
+}
+
+func TestCmft(t *testing.T) {
+	t.Skip(t.Name())
+
+	cfg := log.Config{
+		Level:    "debug",
+		Encoding: "json",
+	}
+
+	_, err := log.Init(cfg)
+	assert.NoError(t, err)
+
+	dir := t.TempDir()
+
+	port1, err := getFreePort()
+	assert.NoError(t, err)
+
+	brokerConf1 := `
+listeners:
+  - address: tcp://0.0.0.0:PORT1
+session:
+  sysTopics:
+    - $link
+    - $baetyl
+  persistence:
+    store:
+      source: DIR
+  resendInterval: 5s
+`
+	brokerConf1 = strings.Replace(brokerConf1, "DIR", path.Join(dir, "test1.db"), -1)
+	brokerConf1 = strings.Replace(brokerConf1, "PORT1", strconv.Itoa(port1), -1)
+
+	rulesConf := `
+clients:
+  - name: mock-broker
+    kind: mqtt
+    address: 'tcp://127.0.0.1:8003'
+    username: 'test'
+    password: 'hahaha'
+  - name: cmft
+    kind: mqtt-cmft
+    address: 'tcp://mqtt.iot.cmft.com:30001'
+    productId: '102973'
+    deviceId: '10473600'
+    deviceSecret: 'OWQ5Y2NmYzdkOTdlMjQ0N2Y2ZDM='
+
+rules:
+  - name: reply
+    source:
+      client: cmft
+      topic: $sys/102973/10473600/thing/property/post/reply
+      qos: 1
+    target:
+      client: mock-broker
+      topic: $baetyl/102973/10473600/thing/property/post/reply
+      qos: 1
+  - name: property
+    source:
+      client: mock-broker
+      topic: $baetyl/102973/10473600/thing/property/post
+      qos: 1
+    target:
+      client: cmft
+      topic: $sys/102973/10473600/thing/property/post
+      qos: 1
+`
+
+	var rulesConfig Config
+	err = utils.UnmarshalYAML([]byte(rulesConf), &rulesConfig)
+	assert.NoError(t, err)
+
+	rules, err := NewRulers(nil, rulesConfig, nil)
+	defer rules.Close()
+	assert.NoError(t, err)
+
+	time.Sleep(1 * time.Hour)
+
+	fmt.Println("--> all clients init successfully <--")
+}
+
+func TestHttp(t *testing.T) {
+	t.Skip(t.Name())
+	cfg := log.Config{
+		Level:    "debug",
+		Encoding: "json",
+	}
+
+	_, err := log.Init(cfg)
+	assert.NoError(t, err)
+
+	dir := t.TempDir()
+	assert.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	rulesConf := `
+clients:
+  - name: mock-broker
+    kind: mqtt
+    address: 'tcp://127.0.0.1:30083'
+    username: 'test'
+    password: 'test'
+  - name: apaas
+    kind: http
+    address: 'https://127.0.0.1:30443'
+    ca: '../var/lib/baetyl/system/certs/ca.pem'
+    cert: '../var/lib/baetyl/system/certs/crt.pem'
+    key: '../var/lib/baetyl/system/certs/key.pem'
+    insecureSkipVerify: true
+
+rules:
+  - name: property
+    source:
+      client: mock-broker
+      topic: shadow/put
+      qos: 1
+    target:
+      client: apaas
+      path: /node/properties
+      method: PUT
+`
+	var rulesConfig Config
+	err = utils.UnmarshalYAML([]byte(rulesConf), &rulesConfig)
+	assert.NoError(t, err)
+
+	rules, err := NewRulers(nil, rulesConfig, nil)
+	defer rules.Close()
+	assert.NoError(t, err)
+	fmt.Println(path.Join(context.SystemCertPath, context.SystemCertCA))
+	time.Sleep(1 * time.Hour)
+
+	fmt.Println("--> all clients init successfully <--")
+}
+
+func TestRegularPubTopic(t *testing.T) {
+	source, actual, pub := "a/+/c", "a/b/c", "a/+/d"
+	str := RegularPubTopic(source, actual, pub, "")
+	assert.Equal(t, "a/b/d", str)
+}
+
+func TestHttpSource(t *testing.T) {
+	t.Skip(t.Name())
+	cfg := log.Config{
+		Level:    "debug",
+		Encoding: "json",
+	}
+
+	_, err := log.Init(cfg)
+	assert.NoError(t, err)
+
+	dir := t.TempDir()
+	assert.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	rulesConf := `
+clients:
+  - name: mock-broker
+    kind: mqtt
+    address: 'tcp://127.0.0.1:8883'
+    username: 'test'
+    password: 'hahaha'
+  - name: apaas
+    kind: http
+    address: 'http://127.0.0.1:18000'
+  - name: http-source
+    kind: http-server
+    port: 8089
+
+rules:
+  - name: http-link
+    source:
+      client: http-source
+    target:
+      client: apaas
+      method: POST
+      path: /iot2/bie/apaas
+  - name: mqtt-link
+    source:
+      client: http-source
+    target:
+      client: mock-broker
+      topic: rule/test
+      qos: 0
+`
+	var rulesConfig Config
+	err = utils.UnmarshalYAML([]byte(rulesConf), &rulesConfig)
+	assert.NoError(t, err)
+
+	rules, err := NewRulers(nil, rulesConfig, nil)
+	defer rules.Close()
+	assert.NoError(t, err)
+	fmt.Println(path.Join(context.SystemCertPath, context.SystemCertCA))
+	time.Sleep(1 * time.Hour)
+
+	fmt.Println("--> all clients init successfully <--")
 }

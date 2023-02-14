@@ -10,7 +10,10 @@ type kind string
 
 // All kinds
 const (
-	KindMqtt kind = "mqtt"
+	KindMqtt       kind = "mqtt"
+	KindMqttCMFT   kind = "mqtt-cmft"
+	KinkHTTP       kind = "http"
+	KindHTTPServer kind = "http-server"
 )
 
 // Config config of rule
@@ -46,11 +49,20 @@ type RuleInfo struct {
 // ClientRef ref to client
 type ClientRef struct {
 	Client string `yaml:"client" json:"client" default:"baetyl-broker"`
-	QOS    int    `yaml:"qos" json:"qos" validate:"min=0, max=1"`
-	Topic  string `yaml:"topic" json:"topic" validate:"nonzero"`
+	QOS    int    `yaml:"qos" json:"qos" default:"0"`
+	Topic  string `yaml:"topic" json:"topic" default:""`
+	Path   string `yaml:"path" json:"path" default:""`
+	Method string `yaml:"method" json:"method" default:"POST"`
 }
 
 // FunctionInfo function info
 type FunctionInfo struct {
 	Name string `yaml:"name" json:"name" validate:"nonzero"`
+}
+
+type MqttCMFTInfo struct {
+	Address      string `yaml:"address" json:"address" validate:"nonzero"`
+	ProductId    string `yaml:"productId" json:"productId" validate:"nonzero"`
+	DeviceId     string `yaml:"deviceId" json:"deviceId" validate:"nonzero"`
+	DeviceSecret string `yaml:"deviceSecret" json:"deviceSecret" validate:"nonzero"`
 }
