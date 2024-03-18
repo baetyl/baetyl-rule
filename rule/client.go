@@ -1,20 +1,19 @@
 package rule
 
 import (
-	"strings"
-
 	"github.com/256dpi/gomqtt/packet"
 	"github.com/baetyl/baetyl-go/v2/http"
 	"github.com/baetyl/baetyl-go/v2/log"
 	"github.com/baetyl/baetyl-go/v2/mqtt"
 
 	"github.com/baetyl/baetyl-rule/v2/client"
+	"github.com/baetyl/baetyl-rule/v2/config"
 )
 
 type SingleClient struct {
 	name    string
 	client  client.Client
-	rulers  map[string]RuleInfo // key: rule name
+	rulers  map[string]config.RuleInfo // key: rule name
 	subTree *mqtt.Trie
 	logger  *log.Logger
 }
@@ -22,10 +21,9 @@ type SingleClient struct {
 func (l *SingleClient) Start(clients map[string]*SingleClient, functionClient *http.Client) error {
 	var err error
 	if l.subTree.Count() == 0 {
-		l.client.Start(nil)
-		return nil
+		return l.client.Start(nil)
 	}
-	l.client.Start(mqtt.NewObserverWrapper(func(pkt *packet.Publish) error {
+	err = l.client.Start(mqtt.NewObserverWrapper(func(pkt *packet.Publish) error {
 		data := pkt.Message.Payload
 		rulers := l.subTree.Match(pkt.Message.Topic)
 		for _, v := range rulers {
@@ -41,18 +39,11 @@ func (l *SingleClient) Start(clients map[string]*SingleClient, functionClient *h
 					l.logger.Error("error occured when invoke function in source", log.Any("function", rule.Function.Name), log.Error(err))
 					return nil
 				}
+				pkt.Message.Payload = data
 			}
 			if rule.Target != nil && len(data) != 0 {
-				out := mqtt.NewPublish()
-				out.ID = pkt.ID
-				out.Dup = pkt.Dup
-				out.Message = packet.Message{
-					Topic:   RegularPubTopic(rule.Source.Topic, pkt.Message.Topic, rule.Target.Topic, rule.Target.Path),
-					Payload: data,
-					QOS:     pkt.Message.QOS,
-					Retain:  pkt.Message.Retain,
-				}
-				err = target.client.SendOrDrop(rule.Target.Method, out)
+				out := generatePackage(config.KindMqtt, pkt, rule.Source, rule.Target)
+				err = target.client.SendOrDrop(out)
 				if err != nil {
 					l.logger.Error("error occurred when send pkt to target in source", log.Error(err))
 				}
@@ -73,21 +64,5 @@ func (l *SingleClient) Start(clients map[string]*SingleClient, functionClient *h
 	}, func(err error) {
 		l.logger.Error("error occurs in source", log.Error(err))
 	}))
-	return nil
-}
-
-func RegularPubTopic(source, actual, pub, path string) string {
-	if path != "" {
-		pub = path
-	}
-	index := strings.Index(pub, "+")
-	if index == -1 {
-		return pub
-	}
-	sourceStr := strings.Split(source, "+")
-	if len(sourceStr) != 2 {
-		return pub
-	}
-	replace := strings.TrimSuffix(strings.TrimPrefix(actual, sourceStr[0]), sourceStr[1])
-	return strings.Replace(pub, "+", replace, 1)
+	return err
 }

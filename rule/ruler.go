@@ -6,6 +6,8 @@ import (
 	"github.com/baetyl/baetyl-go/v2/http"
 	"github.com/baetyl/baetyl-go/v2/log"
 	"github.com/baetyl/baetyl-go/v2/mqtt"
+
+	"github.com/baetyl/baetyl-rule/v2/config"
 )
 
 type ClientSet struct {
@@ -16,17 +18,17 @@ type ClientSet struct {
 type ClientDetail struct {
 	Name         string
 	Subscription []mqtt.QOSTopic
-	Info         ClientInfo
+	Info         config.ClientInfo
 }
 
-func NewRulers(ctx context.Context, cfg Config, functionClient *http.Client) (*ClientSet, error) {
+func NewRulers(ctx context.Context, cfg config.Config, functionClient *http.Client) (*ClientSet, error) {
 	var err error
 	clientInfo := make(map[string]*ClientDetail) // key: client name, value: client config
 	clientSet := &ClientSet{
 		clients: make(map[string]*SingleClient),
 	}
 	for _, v := range cfg.Clients {
-		if v.Kind == KindHTTPServer {
+		if v.Kind == config.KindHTTPServer {
 			// http server can only exist one
 			if clientSet.server != nil {
 				return nil, errors.New("Duplicate http source config")
@@ -44,7 +46,7 @@ func NewRulers(ctx context.Context, cfg Config, functionClient *http.Client) (*C
 		clientSet.clients[v.Name] = &SingleClient{
 			name:    v.Name,
 			subTree: mqtt.NewTrie(),
-			rulers:  make(map[string]RuleInfo), // key: rule name
+			rulers:  make(map[string]config.RuleInfo), // key: rule name
 			logger:  log.With(log.Any("client", v.Name)),
 		}
 	}

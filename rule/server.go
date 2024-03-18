@@ -4,16 +4,15 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/256dpi/gomqtt/packet"
 	"github.com/baetyl/baetyl-go/v2/errors"
 	"github.com/baetyl/baetyl-go/v2/http"
 	"github.com/baetyl/baetyl-go/v2/log"
-	"github.com/baetyl/baetyl-go/v2/mqtt"
 	"github.com/baetyl/baetyl-go/v2/utils"
 	routing "github.com/qiangxue/fasthttp-routing"
 	"github.com/valyala/fasthttp"
 
 	"github.com/baetyl/baetyl-rule/v2/client"
+	"github.com/baetyl/baetyl-rule/v2/config"
 )
 
 type ServerConfig struct {
@@ -26,12 +25,12 @@ type HTTPServer struct {
 	cfg         *ServerConfig
 	server      *http.Server
 	functionCli *http.Client
-	rulers      map[string]RuleInfo      // key: rule name
-	client      map[string]client.Client // key: client name
+	rulers      map[string]config.RuleInfo // key: rule name
+	client      map[string]client.Client   // key: client name
 	logger      *log.Logger
 }
 
-func NewHTTPServer(info ClientInfo, functionCli *http.Client) (*HTTPServer, error) {
+func NewHTTPServer(info config.ClientInfo, functionCli *http.Client) (*HTTPServer, error) {
 	cfg := new(ServerConfig)
 	err := info.Parse(cfg)
 	if err != nil {
@@ -41,7 +40,7 @@ func NewHTTPServer(info ClientInfo, functionCli *http.Client) (*HTTPServer, erro
 		name:        info.Name,
 		cfg:         cfg,
 		functionCli: functionCli,
-		rulers:      map[string]RuleInfo{},
+		rulers:      map[string]config.RuleInfo{},
 		client:      map[string]client.Client{},
 		logger:      log.With(log.Any("http server", info.Name)),
 	}
@@ -76,13 +75,8 @@ func (h *HTTPServer) HandleHTTPRule(ctx *routing.Context) (interface{}, error) {
 		}
 	}
 	if ruleInfo.Target != nil && len(data) != 0 {
-		out := mqtt.NewPublish()
-		out.Message = packet.Message{
-			Topic:   RegularPubTopic("", "", ruleInfo.Target.Topic, ruleInfo.Target.Path),
-			Payload: data,
-			QOS:     0,
-		}
-		err = h.client[ruleInfo.Target.Client].SendOrDrop(ruleInfo.Target.Method, out)
+		out := generatePackage(config.KinkHTTP, data, ruleInfo.Source, ruleInfo.Target)
+		err = h.client[ruleInfo.Target.Client].SendOrDrop(out)
 		if err != nil {
 			http.RespondMsg(ctx, 500, "Failed to send to target", err.Error())
 			return nil, errors.Trace(err)

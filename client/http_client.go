@@ -2,30 +2,44 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"fmt"
+	http2 "net/http"
 	"strings"
 
-	"github.com/baetyl/baetyl-go/v2/context"
+	gcontext "github.com/baetyl/baetyl-go/v2/context"
 	"github.com/baetyl/baetyl-go/v2/errors"
 	"github.com/baetyl/baetyl-go/v2/http"
+	"github.com/baetyl/baetyl-go/v2/log"
 	"github.com/baetyl/baetyl-go/v2/mqtt"
 	"github.com/baetyl/baetyl-go/v2/utils"
+
+	"github.com/baetyl/baetyl-rule/v2/config"
 )
+
+type HTTPClientCfg struct {
+	Address           string `yaml:"address" json:"address"`
+	utils.Certificate `yaml:",inline" json:",inline"`
+}
 
 type HTTPClient struct {
 	cli     *http.Client
 	address string
+	tasks   chan *config.TargetMsg
+	cancel  context.CancelFunc
+	ctx     context.Context
+	logger  *log.Logger
 }
 
-func NewHTTPClient(ctx context.Context, cfg *mqtt.ClientConfig) (Client, error) {
+func NewHTTPClient(gctx gcontext.Context, cfg *HTTPClientCfg) (Client, error) {
 	options := http.NewClientOptions()
 	options.Address = cfg.Address
 	if strings.HasPrefix(cfg.Address, "https") {
 		var tlsCfg *tls.Config
 		var err error
 		if cfg.CA == "" || cfg.Cert == "" || cfg.Key == "" {
-			cert := ctx.SystemConfig().Certificate
+			cert := gctx.SystemConfig().Certificate
 			cert.InsecureSkipVerify = true
 			tlsCfg, err = utils.NewTLSConfigClient(cert)
 		} else {
@@ -42,41 +56,62 @@ func NewHTTPClient(ctx context.Context, cfg *mqtt.ClientConfig) (Client, error) 
 		options.TLSConfig = tlsCfg
 	}
 	cli := http.NewClient(options)
+	ctx, cancel := context.WithCancel(context.Background())
 	return &HTTPClient{
 		cli:     cli,
 		address: cfg.Address,
+		cancel:  cancel,
+		ctx:     ctx,
+		tasks:   make(chan *config.TargetMsg, config.TaskLength),
+		logger:  log.With(log.Any("client", "http")),
 	}, nil
 }
 
-func (h *HTTPClient) SendOrDrop(method string, pkt *mqtt.Publish) error {
+func (h *HTTPClient) SendOrDrop(pkt *config.TargetMsg) error {
+	select {
+	case <-h.ctx.Done():
+		return errors.New("ctx done")
+	case h.tasks <- pkt:
+		return nil
+	}
+}
+
+func (h *HTTPClient) SendPubAck(_ mqtt.Packet) error {
+	return nil
+}
+
+func (h *HTTPClient) Start(_ mqtt.Observer) error {
+	go func() {
+		for {
+			select {
+			case <-h.ctx.Done():
+				return
+			case task := <-h.tasks:
+				go h.HTTPSend(task)
+			}
+		}
+	}()
+	return nil
+}
+
+func (h *HTTPClient) HTTPSend(task *config.TargetMsg) {
 	header := map[string]string{"Content-Type": "application/json"}
-	res, err := h.cli.SendUrl(strings.ToUpper(method), fmt.Sprintf("%s%s", h.address, pkt.Message.Topic), bytes.NewReader(pkt.Message.Payload), header)
+	res, err := h.cli.SendUrl(strings.ToUpper(task.TargetInfo.Method), fmt.Sprintf("%s%s", h.address, task.Topic), bytes.NewReader(task.Data), header)
 	if err != nil {
-		return errors.Trace(err)
+		h.logger.Error("failed to send http", log.Error(err))
 	}
-	if res.StatusCode != 200 {
-		return errors.New(res.Status)
+	if res.StatusCode < http2.StatusOK || res.StatusCode > http2.StatusAlreadyReported {
+		h.logger.Error("failed to get 200 code", log.Any("status", res.Status))
 	}
-	return nil
+	h.logger.Debug("HTTP Send msg", log.Any("topic", task.Topic))
 }
 
-func (h *HTTPClient) SendPubAck(pkt mqtt.Packet) error {
-	return nil
-}
+func (h *HTTPClient) ResetClient(_ *mqtt.ClientConfig) {}
 
-func (h *HTTPClient) Start(obs mqtt.Observer) {
-	return
-}
-
-func (h *HTTPClient) ResetClient(cfg *mqtt.ClientConfig) {
-	return
-}
-
-func (h *HTTPClient) SetReconnectCallback(callback mqtt.ReconnectCallback) {
-	return
-}
+func (h *HTTPClient) SetReconnectCallback(_ mqtt.ReconnectCallback) {}
 
 // Close closes client
 func (h *HTTPClient) Close() error {
+	h.cancel()
 	return nil
 }
