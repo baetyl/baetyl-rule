@@ -5,6 +5,7 @@ import (
 
 	"github.com/baetyl/baetyl-go/v2/context"
 
+	"github.com/baetyl/baetyl-rule/v2/config"
 	"github.com/baetyl/baetyl-rule/v2/rule"
 )
 
@@ -14,7 +15,7 @@ func main() {
 			return err
 		}
 
-		var cfg rule.Config
+		var cfg config.Config
 		err := ctx.LoadCustomConfig(&cfg)
 		if err != nil {
 			return err
@@ -22,9 +23,9 @@ func main() {
 
 		// baetyl-broker client is the mqtt broker in edge
 		systemCert := ctx.SystemConfig().Certificate
-		cfg.Clients = append(cfg.Clients, rule.ClientInfo{
+		cfg.Clients = append(cfg.Clients, config.ClientInfo{
 			Name: "baetyl-broker",
-			Kind: rule.KindMqtt,
+			Kind: config.KindMqtt,
 			Value: map[string]interface{}{
 				"address": fmt.Sprintf("%s://%s:%s", "ssl", context.BrokerHost(), context.BrokerPort()),
 				"ca":      systemCert.CA,
@@ -38,15 +39,11 @@ func main() {
 			return err
 		}
 
-		rulers, err := rule.NewRulers(cfg, function)
+		rulers, err := rule.NewRulers(ctx, cfg, function)
+		defer rulers.Close()
 		if err != nil {
 			return err
 		}
-		defer func() {
-			for _, ruler := range rulers {
-				ruler.Close()
-			}
-		}()
 
 		ctx.Wait()
 		return nil
