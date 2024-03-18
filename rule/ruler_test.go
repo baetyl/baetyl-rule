@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"path"
@@ -20,10 +21,19 @@ import (
 	"github.com/baetyl/baetyl-go/v2/log"
 	"github.com/baetyl/baetyl-go/v2/mqtt"
 	"github.com/baetyl/baetyl-go/v2/utils"
+	"github.com/go-playground/validator/v10"
 	routing "github.com/qiangxue/fasthttp-routing"
 	"github.com/stretchr/testify/assert"
 	"github.com/valyala/fasthttp"
+
+	"github.com/baetyl/baetyl-rule/v2/config"
 )
+
+func init() {
+	utils.RegisterValidation("principals", func(fl validator.FieldLevel) bool {
+		return true
+	})
+}
 
 func TestRule(t *testing.T) {
 	cfg := log.Config{
@@ -144,11 +154,13 @@ rules:
 	ops.Address = fmt.Sprintf("http://127.0.0.1:%d", port3)
 	functionClient := http.NewClient(ops)
 
-	var rulesConfig Config
+	var rulesConfig config.Config
 	err = utils.UnmarshalYAML([]byte(rulesConf), &rulesConfig)
 	assert.NoError(t, err)
 
-	rules, err := NewRulers(nil, rulesConfig, functionClient)
+	ctx := context.NewContext("")
+	ctx.LoadOrStore(context.KeyAppName, "test")
+	rules, err := NewRulers(ctx, rulesConfig, functionClient)
 	defer rules.Close()
 	assert.NoError(t, err)
 
@@ -460,11 +472,13 @@ rules:
 `
 	rulesConf = strings.Replace(rulesConf, "PORT2", strconv.Itoa(port2), -1)
 
-	var rulesConfig Config
+	var rulesConfig config.Config
 	err = utils.UnmarshalYAML([]byte(rulesConf), &rulesConfig)
 	assert.NoError(t, err)
 
-	rules, err := NewRulers(nil, rulesConfig, nil)
+	ctx := context.NewContext("")
+	ctx.LoadOrStore(context.KeyAppName, "test")
+	rules, err := NewRulers(ctx, rulesConfig, nil)
 	assert.NoError(t, err)
 	defer rules.Close()
 
@@ -669,7 +683,9 @@ func TestRuleWildcard(t *testing.T) {
 	_, err := log.Init(cfg)
 	assert.NoError(t, err)
 
-	dir := t.TempDir()
+	dir, err := ioutil.TempDir("", t.Name())
+	assert.NoError(t, err)
+	defer os.RemoveAll(dir)
 
 	port1, err := getFreePort()
 	assert.NoError(t, err)
@@ -741,11 +757,13 @@ rules:
 	ops.Address = fmt.Sprintf("http://127.0.0.1:%d", port3)
 	functionClient := http.NewClient(ops)
 
-	var rulesConfig Config
+	var rulesConfig config.Config
 	err = utils.UnmarshalYAML([]byte(rulesConf), &rulesConfig)
 	assert.NoError(t, err)
 
-	rules, err := NewRulers(nil, rulesConfig, functionClient)
+	ctx := context.NewContext("")
+	ctx.LoadOrStore(context.KeyAppName, "test")
+	rules, err := NewRulers(ctx, rulesConfig, functionClient)
 	defer rules.Close()
 	assert.NoError(t, err)
 
@@ -793,85 +811,6 @@ rules:
 	fmt.Println("--> test rule2 passed <--")
 }
 
-func TestCmft(t *testing.T) {
-	t.Skip(t.Name())
-
-	cfg := log.Config{
-		Level:    "debug",
-		Encoding: "json",
-	}
-
-	_, err := log.Init(cfg)
-	assert.NoError(t, err)
-
-	dir := t.TempDir()
-
-	port1, err := getFreePort()
-	assert.NoError(t, err)
-
-	brokerConf1 := `
-listeners:
-  - address: tcp://0.0.0.0:PORT1
-session:
-  sysTopics:
-    - $link
-    - $baetyl
-  persistence:
-    store:
-      source: DIR
-  resendInterval: 5s
-`
-	brokerConf1 = strings.Replace(brokerConf1, "DIR", path.Join(dir, "test1.db"), -1)
-	brokerConf1 = strings.Replace(brokerConf1, "PORT1", strconv.Itoa(port1), -1)
-
-	rulesConf := `
-clients:
-  - name: mock-broker
-    kind: mqtt
-    address: 'tcp://127.0.0.1:8003'
-    username: 'test'
-    password: 'hahaha'
-  - name: cmft
-    kind: mqtt-cmft
-    address: 'tcp://mqtt.iot.cmft.com:30001'
-    productId: '102973'
-    deviceId: '10473600'
-    deviceSecret: 'OWQ5Y2NmYzdkOTdlMjQ0N2Y2ZDM='
-
-rules:
-  - name: reply
-    source:
-      client: cmft
-      topic: $sys/102973/10473600/thing/property/post/reply
-      qos: 1
-    target:
-      client: mock-broker
-      topic: $baetyl/102973/10473600/thing/property/post/reply
-      qos: 1
-  - name: property
-    source:
-      client: mock-broker
-      topic: $baetyl/102973/10473600/thing/property/post
-      qos: 1
-    target:
-      client: cmft
-      topic: $sys/102973/10473600/thing/property/post
-      qos: 1
-`
-
-	var rulesConfig Config
-	err = utils.UnmarshalYAML([]byte(rulesConf), &rulesConfig)
-	assert.NoError(t, err)
-
-	rules, err := NewRulers(nil, rulesConfig, nil)
-	defer rules.Close()
-	assert.NoError(t, err)
-
-	time.Sleep(1 * time.Hour)
-
-	fmt.Println("--> all clients init successfully <--")
-}
-
 func TestHttp(t *testing.T) {
 	t.Skip(t.Name())
 	cfg := log.Config{
@@ -912,7 +851,7 @@ rules:
       path: /node/properties
       method: PUT
 `
-	var rulesConfig Config
+	var rulesConfig config.Config
 	err = utils.UnmarshalYAML([]byte(rulesConf), &rulesConfig)
 	assert.NoError(t, err)
 
@@ -975,7 +914,7 @@ rules:
       topic: rule/test
       qos: 0
 `
-	var rulesConfig Config
+	var rulesConfig config.Config
 	err = utils.UnmarshalYAML([]byte(rulesConf), &rulesConfig)
 	assert.NoError(t, err)
 

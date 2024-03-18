@@ -1,4 +1,4 @@
-package rule
+package config
 
 import (
 	"encoding/json"
@@ -6,15 +6,26 @@ import (
 	"github.com/baetyl/baetyl-go/v2/utils"
 )
 
-type kind string
+type Kind string
 
 // All kinds
 const (
-	KindMqtt       kind = "mqtt"
-	KindMqttCMFT   kind = "mqtt-cmft"
-	KinkHTTP       kind = "http"
-	KindHTTPServer kind = "http-server"
+	KindMqtt       Kind = "mqtt"
+	KinkHTTP       Kind = "http"
+	KindHTTPServer Kind = "http-server"
+	KindRabbit     Kind = "rabbit-mq"
+	KindKafka      Kind = "kafka"
+	KindS3         Kind = "s3"
 )
+
+const TaskLength = 1024
+
+type TargetMsg struct {
+	TargetInfo ClientRef
+	Meta       map[string]any
+	Data       []byte
+	Topic      string
+}
 
 // Config config of rule
 type Config struct {
@@ -25,12 +36,12 @@ type Config struct {
 // ClientInfo client info
 type ClientInfo struct {
 	Name  string                 `yaml:"name" json:"name" validate:"nonzero"`
-	Kind  kind                   `yaml:"kind" json:"kind" validate:"nonzero"`
+	Kind  Kind                   `yaml:"kind" json:"kind" validate:"nonzero"`
 	Value map[string]interface{} `yaml:",inline" json:",inline"`
 }
 
 // Parse parse to get real config
-func (v *ClientInfo) Parse(in interface{}) error {
+func (v *ClientInfo) Parse(in any) error {
 	data, err := json.Marshal(v.Value)
 	if err != nil {
 		return err
@@ -46,23 +57,30 @@ type RuleInfo struct {
 	Function *FunctionInfo `yaml:"function" json:"function"`
 }
 
-// ClientRef ref to client
-type ClientRef struct {
-	Client string `yaml:"client" json:"client" default:"baetyl-broker"`
-	QOS    int    `yaml:"qos" json:"qos" default:"0"`
-	Topic  string `yaml:"topic" json:"topic" default:""`
+type RabbitMQRef struct {
+	Exchange   string `yaml:"exchange" json:"exchange" default:""`
+	RoutingKey string `yaml:"routingKey" json:"routingKey" default:""`
+}
+
+type HTTPRef struct {
 	Path   string `yaml:"path" json:"path" default:""`
 	Method string `yaml:"method" json:"method" default:"POST"`
+}
+
+type MQTTRef struct {
+	QOS   int    `yaml:"qos" json:"qos" default:"0"`
+	Topic string `yaml:"topic" json:"topic" default:""`
+}
+
+// ClientRef ref to client
+type ClientRef struct {
+	Client      string `yaml:"client" json:"client" default:"baetyl-broker"`
+	MQTTRef     `yaml:",inline" json:",inline"`
+	HTTPRef     `yaml:",inline" json:",inline"`
+	RabbitMQRef `yaml:",inline" json:",inline"`
 }
 
 // FunctionInfo function info
 type FunctionInfo struct {
 	Name string `yaml:"name" json:"name" validate:"nonzero"`
-}
-
-type MqttCMFTInfo struct {
-	Address      string `yaml:"address" json:"address" validate:"nonzero"`
-	ProductId    string `yaml:"productId" json:"productId" validate:"nonzero"`
-	DeviceId     string `yaml:"deviceId" json:"deviceId" validate:"nonzero"`
-	DeviceSecret string `yaml:"deviceSecret" json:"deviceSecret" validate:"nonzero"`
 }

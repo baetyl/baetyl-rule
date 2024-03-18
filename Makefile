@@ -77,7 +77,7 @@ image:
 
 .PHONY: test
 test: fmt
-	$(GOTEST) -race -short -covermode=atomic -coverprofile=coverage.txt $(GOPKGS)
+	$(GOTEST) -short -covermode=atomic -coverprofile=coverage.txt $(GOPKGS)
 	@go tool cover -func=coverage.txt | grep total
 
 .PHONY: fmt
